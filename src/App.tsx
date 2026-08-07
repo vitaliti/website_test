@@ -6,7 +6,7 @@ import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
-
+  const iconPath = `${import.meta.env.BASE_URL}icons.svg`;
   return (
     <>
       <section id="center">
@@ -35,7 +35,7 @@ function App() {
       <section id="next-steps">
         <div id="docs">
           <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="${import.meta.env.BASE_URL}icons.svg#documentation-icon"></use>
+            <use href={`${iconPath}#documentation-icon`}></use>
           </svg>
           <h2>Documentation</h2>
           <p>Your questions, answered</p>
@@ -56,7 +56,7 @@ function App() {
         </div>
         <div id="social">
           <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="${import.meta.env.BASE_URL}icons.svg#social-icon"></use>
+            <use href={`${iconPath}#social-icon`}></use>
           </svg>
           <h2>Connect with us</h2>
           <p>Join the Vite community</p>
@@ -68,7 +68,7 @@ function App() {
                   role="presentation"
                   aria-hidden="true"
                 >
-                  <use href="${import.meta.env.BASE_URL}icons.svg#github-icon"></use>
+                  <use href={`${iconPath}#github-icon`}></use>
                 </svg>
                 GitHub
               </a>
@@ -80,7 +80,7 @@ function App() {
                   role="presentation"
                   aria-hidden="true"
                 >
-                  <use href="${import.meta.env.BASE_URL}icons.svg#discord-icon"></use>
+                  <use href={`${iconPath}#discord-icon`}></use>
                 </svg>
                 Discord
               </a>
@@ -92,7 +92,7 @@ function App() {
                   role="presentation"
                   aria-hidden="true"
                 >
-                  <use href="${import.meta.env.BASE_URL}icons.svg#x-icon"></use>
+                  <use href={`${iconPath}#x-icon`}></use>
                 </svg>
                 X.com
               </a>
@@ -104,7 +104,7 @@ function App() {
                   role="presentation"
                   aria-hidden="true"
                 >
-                  <use href="${import.meta.env.BASE_URL}icons.svg#bluesky-icon"></use>
+                  <use href={`${iconPath}#bluesky-icon`}></use>
                 </svg>
                 Bluesky
               </a>

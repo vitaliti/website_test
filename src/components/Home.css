@@ -1,0 +1,40 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px;
+  background-color: green;
+}
+
+.home h1 {
+  font-size: 3.5rem;
+  line-height: 1.2;
+}
+
+.home p {
+  font-size: 2rem;
+  line-height: 1.2;
+  color: yellow;
+}
+
+.search {
+  position: relative;
+}
+
+.search input {
+  width: 100%;
+  border-radius: 999px;
+  padding: 12px 20px;
+  border: 1px solid #ccc;
+}
+
+.search button {
+  font-size: 1.5rem;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid #ccc;
+}

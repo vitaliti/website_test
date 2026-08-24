@@ -1,6 +1,6 @@
 import "./Home.css";
 
-export default function Home(): JSX.Element {
+export default function Home() {
   return (
     <div className="home">
       <h1>What do you need today?</h1>

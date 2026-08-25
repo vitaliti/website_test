@@ -7,8 +7,6 @@ export default function Body() {
     <main className="body">
       <Routes>
         <Route path="/" element={<Home />} />
-        {/* <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} /> */}
       </Routes>
     </main>
   );

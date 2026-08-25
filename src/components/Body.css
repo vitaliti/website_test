@@ -1,11 +1,10 @@
-.body {
+/* .body {
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
   padding: 16px;
 
   background-color: green;
-}
+} */
 
 /* .body button {
   white-space: nowrap;

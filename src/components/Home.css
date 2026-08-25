@@ -1,21 +1,25 @@
 .home {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 10px;
   padding: 16px;
   background-color: green;
 }
 
 .home h1 {
-  font-size: 3.5rem;
+  font-size: 3rem;
   line-height: 1.2;
 }
 
 .home p {
-  font-size: 2rem;
+  font-size: 1.3rem;
   line-height: 1.2;
   color: yellow;
+}
+
+.home h1,
+.home p {
+  align-self: flex-start;
 }
 
 .search {

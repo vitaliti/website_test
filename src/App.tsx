@@ -3,7 +3,6 @@
 // import viteLogo from './assets/vite.svg'
 // import heroImg from './assets/hero.png'
 import './App.css'
-// import IconButton from './components/IconButton'
 import Header from './components/Header'
 import Body from './components/Body'
 

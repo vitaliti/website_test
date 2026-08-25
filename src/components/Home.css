@@ -22,23 +22,17 @@
   align-self: flex-start;
 }
 
-.search {
-  position: relative;
-}
-
-.search input {
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
   width: 100%;
-  border-radius: 999px;
-  padding: 12px 20px;
-  border: 1px solid #ccc;
 }
 
-.search button {
-  font-size: 1.5rem;
-  position: absolute;
-  right: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid #ccc;
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 40px;
+  min-width: 0;
 }

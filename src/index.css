@@ -1,3 +1,29 @@
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: Arial, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -29,7 +55,7 @@
     font-size: 16px;
   }
 }
-
+/* 
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;
@@ -48,7 +74,7 @@
   #social .button-icon {
     filter: invert(1) brightness(2);
   }
-}
+} */
 
 #root {
   width: 1126px;
@@ -91,21 +117,4 @@ h2 {
     font-size: 20px;
   }
 }
-p {
-  margin: 0;
-}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}

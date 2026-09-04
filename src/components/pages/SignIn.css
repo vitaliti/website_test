@@ -1,0 +1,91 @@
+.auth {
+  width: min(400px, 90%);
+  margin: 60px auto;
+  padding: 35px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  background-color: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.auth h1 {
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 2rem;
+}
+
+.auth input {
+  width: 100%;
+  padding: 12px 14px;
+
+  border: 1px solid #d5d5d5;
+  border-radius: 8px;
+
+  font-size: 1rem;
+  outline: none;
+}
+
+.auth input:focus {
+  border-color: #4485e7;
+  box-shadow: 0 0 0 2px rgba(68, 133, 231, 0.15);
+}
+
+.auth-submit {
+  padding: 12px;
+
+  border: none;
+  border-radius: 8px;
+
+  background-color: #4485e7;
+  color: white;
+
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.auth-submit:hover {
+  background-color: #2f72d0;
+}
+
+.auth p {
+  margin: 5px 0 0;
+
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.auth-switch {
+  padding: 0;
+
+  border: none;
+  background: none;
+
+  color: #4485e7;
+  font-size: 0.9rem;
+
+  cursor: pointer;
+}
+
+.auth-switch:hover {
+  color: #2f72d0;
+}
+
+/* Phones */
+@media (max-width: 600px) {
+  .auth {
+    width: 90%;
+    margin: 30px auto;
+    padding: 25px 20px;
+  }
+
+  .auth h1 {
+    font-size: 1.7rem;
+  }
+}

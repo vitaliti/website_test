@@ -1,20 +1,25 @@
 import "./Home.css";
 import { useState } from "react";
-import SelectFilter from "./SelectFilter";
+import SelectFilter from "../sub_components/SelectFilter";
+import InputFilter from "../sub_components/InputFilter";
 
 export default function Home() {
   const [bedrooms, setBedrooms] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const [budget, setBudget] = useState("");
+
   return (
     <div className="home">
       <h1>Find your apartment in Sofia.</h1>
       <p>Search rentals across the city — no account needed.</p>
 
       <div className="filters">
-        <div className="filter">
-          <span>Budget</span>
-          <input placeholder="e.g 600" />
-        </div>
+        <InputFilter
+          label="Budget"
+          placeholder="e.g 600"
+          value={budget}
+          onChange={setBudget}>
+        </InputFilter>
 
         <SelectFilter
           label="Bedrooms"

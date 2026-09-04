@@ -1,10 +1,10 @@
 import { Routes, Route } from "react-router-dom";
-import "./Body.css";
-import Home from "./Home";
+import "./Main.css";
+import Home from "./pages/Home";
 
-export default function Body() {
+export default function Main() {
   return (
-    <main className="body">
+    <main className="main">
       <Routes>
         <Route path="/" element={<Home />} />
       </Routes>

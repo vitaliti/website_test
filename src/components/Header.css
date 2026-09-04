@@ -1,24 +1,36 @@
 .header {
   display: flex;
   justify-content: flex-end;
+  /* flex-wrap: wrap; */
   gap: 10px;
   padding: 16px;
   background-color: orange;
+}
+
+.header > a:first-child {
+  margin-right: auto;
+}
+/*MOBILE*/
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header > a:first-child {
+    margin-right: 0;
+  }
 }
 
 .header a {
   display: flex;
   align-items: center;
   justify-content: center;
-
   font-size: 0.7rem;
-
   padding: 3px 18px;
   white-space: nowrap;
-
   border-radius: 9990px;
   background-color: rgb(68, 133, 231);
-
   color: black;
   text-decoration: none;
 }

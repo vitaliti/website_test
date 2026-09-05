@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./SignIn.css";
 import { supabase } from "../../lib/supabase";
+import { useNavigate } from "react-router-dom";
 
 export default function SignIn() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -10,6 +11,7 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
 
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   async function handleSubmit() {
     setMessage("");
@@ -39,7 +41,7 @@ export default function SignIn() {
         return;
       }
 
-      setMessage("Signed in successfully!");
+      navigate("/profile");
     }
   }
 

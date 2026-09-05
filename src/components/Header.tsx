@@ -39,7 +39,7 @@ export default function Header() {
       ) : (
         <Link to="/sign-in">Sign in</Link>
       )}
-      <Link to="/register">List your apartment</Link>
+      <Link to="/my-apartments">List your apartment</Link>
     </header>
   );
 }

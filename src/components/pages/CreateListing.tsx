@@ -1,17 +1,20 @@
 import { useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 import "./CreateListing.css";
 
 export default function CreateListing() {
-  const [city, setCity] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [price, setPrice] = useState("");
-  const [floor, setFloor] = useState("");
-  const [rooms, setRooms] = useState("");
-  const [storage, setStorage] = useState(false);
-  const [ac, setAc] = useState(false);
-  const [garage, setGarage] = useState(false);
-  const [picture, setPicture] = useState<File | null>(null);
+    const [message, setMessage] = useState("");
+    const [messageType, setMessageType] = useState<"success" | "error" | "">("");
+    const [city, setCity] = useState("");
+    const [neighborhood, setNeighborhood] = useState("");
+    const [price, setPrice] = useState("");
+    const [floor, setFloor] = useState("");
+    const [rooms, setRooms] = useState("");
+    const [storage, setStorage] = useState(false);
+    const [ac, setAc] = useState(false);
+    const [garage, setGarage] = useState(false);
+    const [picture, setPicture] = useState<File | null>(null);
 
   function handlePictureChange(
     event: React.ChangeEvent<HTMLInputElement>
@@ -20,20 +23,44 @@ export default function CreateListing() {
     setPicture(file);
   }
 
-function handleSubmit(event: React.SubmitEvent) {
+async function handleSubmit(event: React.SubmitEvent) {
   event.preventDefault();
 
-  console.log({
-    city,
-    neighborhood,
-    price,
-    floor,
-    rooms,
-    storage,
-    ac,
-    garage,
-    picture,
-  });
+  setMessage("");
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    setMessage("You must be logged in to create a listing.");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("Apartments")
+    .insert({
+      creator_id: user.id,
+      city,
+      neighborhood,
+      price: Number(price),
+      floor: Number(floor),
+      rooms: Number(rooms),
+      storage,
+      ac,
+      garage,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    setMessage("Failed to create listing. Please try again.");
+    setMessageType("error");
+    return;
+  }
+
+    setMessage("Listing created successfully!");
+    setMessageType("success");
 }
 
   return (
@@ -178,9 +205,16 @@ function handleSubmit(event: React.SubmitEvent) {
             </div>
           </section>
 
+            {message && (
+            <p className={`listing-message ${messageType}`}>
+                {message}
+            </p>
+            )}
+
           <button type="submit" className="create-listing-button">
             Create Listing
           </button>
+
         </form>
       </div>
     </main>

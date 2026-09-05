@@ -19,6 +19,10 @@ export default function Profile() {
     <main>
       <h1>Your Profile</h1>
 
+      <button onClick={() => navigate("/create-listing")}>
+        Create Listing
+      </button>
+
       <button onClick={handleLogout}>
         Log out
       </button>

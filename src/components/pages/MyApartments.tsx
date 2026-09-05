@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { useNavigate } from "react-router-dom";
-
 import "./MyApartments.css";
+
+type ApartmentImage = {
+  id: string;
+  apartment_id: string;
+  image_path: string;
+};
 
 type Apartment = {
   id: string;
@@ -14,11 +19,10 @@ type Apartment = {
   storage: boolean;
   ac: boolean;
   garage: boolean;
-  picture: string | null;
+  images: ApartmentImage[];
 };
 
 export default function MyApartments() {
-  const navigate = useNavigate();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,19 +42,53 @@ export default function MyApartments() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("Apartments")
-        .select("*")
-        .eq("creator_id", user.id);
+      const { data: apartmentsData, error: apartmentsError } =
+        await supabase
+          .from("Apartments")
+          .select("*")
+          .eq("creator_id", user.id);
 
-      if (error) {
-        console.error("Error loading apartments:", error);
+      if (apartmentsError) {
+        console.error("Error loading apartments:", apartmentsError);
         setError("Failed to load your apartments.");
         setLoading(false);
         return;
       }
 
-      setApartments(data ?? []);
+      const apartments = apartmentsData ?? [];
+
+      const apartmentIds = apartments.map(
+        (apartment) => apartment.id
+      );
+
+      let imagesData: ApartmentImage[] = [];
+
+      if (apartmentIds.length > 0) {
+        const { data, error: imagesError } = await supabase
+          .from("ApartmentImages")
+          .select("id, apartment_id, image_path")
+          .in("apartment_id", apartmentIds);
+
+        if (imagesError) {
+          console.error("Error loading images:", imagesError);
+          setError("Failed to load apartment images.");
+          setLoading(false);
+          return;
+        }
+
+        imagesData = data ?? [];
+      }
+
+      const apartmentsWithImages: Apartment[] = apartments.map(
+        (apartment) => ({
+          ...apartment,
+          images: imagesData.filter(
+            (image) => image.apartment_id === apartment.id
+          ),
+        })
+      );
+
+      setApartments(apartmentsWithImages);
       setLoading(false);
     }
 
@@ -58,20 +96,18 @@ export default function MyApartments() {
   }, []);
 
   if (loading) {
-    return (
-      <main className="my-apartments">
-        <h1>My Apartments</h1>
-        <p className="apartments-status">Loading...</p>
-      </main>
-    );
+    return <p className="apartments-status">Loading apartments...</p>;
   }
 
   if (error) {
+    return <p className="apartments-status error">{error}</p>;
+  }
+
+  if (apartments.length === 0) {
     return (
-      <main className="my-apartments">
-        <h1>My Apartments</h1>
-        <p className="apartments-status error">{error}</p>
-      </main>
+      <p className="apartments-status">
+        You haven't created any apartment listings yet.
+      </p>
     );
   }
 
@@ -80,45 +116,56 @@ export default function MyApartments() {
       <div className="apartments-container">
         <h1>My Apartments</h1>
 
-        {apartments.length === 0 ? (
-          <p className="apartments-status">
-            You haven't created any apartment listings yet.
-          </p>
-        ) : (
-          <div className="apartments-grid">
-            {apartments.map((apartment) => (
-              <article className="apartment-card" key={apartment.id} onClick={() => navigate(`/my-apartments/${apartment.id}`)}>
+        <div className="apartments-grid">
+          {apartments.map((apartment) => {
+            const firstImage = apartment.images[0];
+
+            return (
+              <Link
+                key={apartment.id}
+                to={`/apartments/${apartment.id}`}
+                className="apartment-card"
+              >
                 <div className="apartment-image">
-                  {apartment.picture ? (
+                  {firstImage ? (
                     <img
-                      src={apartment.picture}
-                      alt={`${apartment.city}, ${apartment.neighborhood}`}
+                      src={
+                        supabase.storage
+                          .from("apartment-images")
+                          .getPublicUrl(firstImage.image_path)
+                          .data.publicUrl
+                      }
+                      alt={`${apartment.city} apartment`}
                     />
                   ) : (
-                    <span>No image</span>
+                    "No image"
                   )}
                 </div>
 
                 <div className="apartment-info">
                   <div className="apartment-price">
-                    €{apartment.price} <span>/ month</span>
+                    {apartment.price} €
+                    <span> / month</span>
                   </div>
 
-                  <h2>{apartment.neighborhood}</h2>
+                  <h2>{apartment.rooms} rooms</h2>
 
                   <p className="apartment-location">
-                    {apartment.city}
+                    {apartment.neighborhood}, {apartment.city}
                   </p>
 
                   <div className="apartment-details">
                     <span>Floor {apartment.floor}</span>
-                    <span>{apartment.rooms} rooms</span>
+
+                    {apartment.storage && <span>Storage</span>}
+                    {apartment.ac && <span>AC</span>}
+                    {apartment.garage && <span>Garage</span>}
                   </div>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </main>
   );

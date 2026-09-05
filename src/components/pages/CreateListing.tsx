@@ -14,14 +14,14 @@ export default function CreateListing() {
     const [storage, setStorage] = useState(false);
     const [ac, setAc] = useState(false);
     const [garage, setGarage] = useState(false);
-    const [picture, setPicture] = useState<File | null>(null);
+    const [pictures, setPictures] = useState<File[]>([]);
 
-  function handlePictureChange(
+    function handlePictureChange(
     event: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file = event.target.files?.[0] ?? null;
-    setPicture(file);
-  }
+    ) {
+    const files = Array.from(event.target.files ?? []);
+    setPictures(files);
+    }
 
 async function handleSubmit(event: React.SubmitEvent) {
   event.preventDefault();
@@ -37,7 +37,7 @@ async function handleSubmit(event: React.SubmitEvent) {
     return;
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("Apartments")
     .insert({
       creator_id: user.id,
@@ -58,6 +58,36 @@ async function handleSubmit(event: React.SubmitEvent) {
     setMessageType("error");
     return;
   }
+
+    for (const picture of pictures) {
+    const filePath = `${user.id}/${data.id}/${crypto.randomUUID()}-${picture.name}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from("apartment-images")
+        .upload(filePath, picture, {
+        contentType: picture.type,
+        upsert: false,
+        });
+
+    if (uploadError) {
+        console.error("Error uploading image:", uploadError);
+        setMessage("Listing created, but an image failed to upload.");
+        return;
+    }
+
+    const { error: imageRecordError } = await supabase
+        .from("ApartmentImages")
+        .insert({
+        apartment_id: data.id,
+        image_path: filePath,
+        });
+
+    if (imageRecordError) {
+        console.error("Error saving image record:", imageRecordError);
+        setMessage("Listing created, but an image record failed to save.");
+        return;
+    }
+    }
 
     setMessage("Listing created successfully!");
     setMessageType("success");
@@ -194,14 +224,19 @@ async function handleSubmit(event: React.SubmitEvent) {
                 id="picture"
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handlePictureChange}
               />
 
-              {picture && (
+              {pictures.length > 0 && (
+            <p>{pictures.length} image(s) selected</p>
+            )}
+
+              {/* {picture && (
                 <p className="selected-picture">
                   Selected: {picture.name}
                 </p>
-              )}
+              )} */}
             </div>
           </section>
 

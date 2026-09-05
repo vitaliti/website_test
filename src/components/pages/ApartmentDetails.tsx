@@ -3,6 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import "./ApartmentDetails.css";
 
+type ApartmentImage = {
+  id: string;
+  apartment_id: string;
+  image_path: string;
+};
+
 type Apartment = {
   id: string;
   city: string;
@@ -13,7 +19,7 @@ type Apartment = {
   storage: boolean;
   ac: boolean;
   garage: boolean;
-  picture: string | null;
+  images: ApartmentImage[];
 };
 
 export default function ApartmentDetails() {
@@ -21,6 +27,7 @@ export default function ApartmentDetails() {
   const navigate = useNavigate();
 
   const [apartment, setApartment] = useState<Apartment | null>(null);
+  const [selectedImage, setSelectedImage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,20 +39,37 @@ export default function ApartmentDetails() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("Apartments")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const { data: apartmentData, error: apartmentError } =
+        await supabase
+          .from("Apartments")
+          .select("*")
+          .eq("id", id)
+          .single();
 
-      if (error) {
-        console.error("Error loading apartment:", error);
+      if (apartmentError) {
+        console.error("Error loading apartment:", apartmentError);
         setError("Failed to load apartment.");
         setLoading(false);
         return;
       }
 
-      setApartment(data);
+      const { data: imagesData, error: imagesError } = await supabase
+        .from("ApartmentImages")
+        .select("id, apartment_id, image_path")
+        .eq("apartment_id", id);
+
+      if (imagesError) {
+        console.error("Error loading apartment images:", imagesError);
+        setError("Failed to load apartment images.");
+        setLoading(false);
+        return;
+      }
+
+      setApartment({
+        ...apartmentData,
+        images: imagesData ?? [],
+      });
+
       setLoading(false);
     }
 
@@ -74,6 +98,14 @@ export default function ApartmentDetails() {
     );
   }
 
+  const selectedImageData = apartment.images[selectedImage];
+
+  const selectedImageUrl = selectedImageData
+    ? supabase.storage
+        .from("apartment-images")
+        .getPublicUrl(selectedImageData.image_path).data.publicUrl
+    : null;
+
   return (
     <main className="apartment-details-page">
       <div className="apartment-details-container">
@@ -88,15 +120,44 @@ export default function ApartmentDetails() {
         <div className="apartment-details-card">
 
           <div className="apartment-details-image">
-            {apartment.picture ? (
+
+            {selectedImageUrl ? (
               <img
-                src={apartment.picture}
+                src={selectedImageUrl}
                 alt={`${apartment.city}, ${apartment.neighborhood}`}
               />
             ) : (
               <span>No image available</span>
             )}
+
           </div>
+
+          {apartment.images.length > 1 && (
+            <div className="apartment-details-thumbnails">
+              {apartment.images.map((image, index) => {
+                const imageUrl = supabase.storage
+                  .from("apartment-images")
+                  .getPublicUrl(image.image_path).data.publicUrl;
+
+                return (
+                  <button
+                    key={image.id}
+                    onClick={() => setSelectedImage(index)}
+                    className={
+                      index === selectedImage
+                        ? "apartment-thumbnail selected"
+                        : "apartment-thumbnail"
+                    }
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Apartment ${index + 1}`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="apartment-details-content">
 

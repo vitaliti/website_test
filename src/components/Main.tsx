@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import SignIn from "./pages/SignIn";
 import Profile from "./pages/Profile";
 import CreateListing from "./pages/CreateListing";
+import MyApartments from "./pages/MyApartments";
 
 export default function Main() {
   return (
@@ -12,6 +13,7 @@ export default function Main() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/create-listing" element={<CreateListing />} />
+        <Route path="/my-apartments" element={<MyApartments />} />
       </Routes>
     </main>
   );

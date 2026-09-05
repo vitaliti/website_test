@@ -1,0 +1,120 @@
+.my-apartments {
+  width: 100%;
+  padding: 40px 20px;
+  box-sizing: border-box;
+}
+
+.apartments-container {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+}
+
+.apartments-container h1 {
+  margin: 0 0 30px;
+  text-align: center;
+  font-size: 2rem;
+}
+
+.apartments-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.apartment-card {
+  overflow: hidden;
+  background-color: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.07);
+}
+
+.apartment-image {
+  width: 100%;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f3f6;
+  color: #888;
+}
+
+.apartment-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.apartment-info {
+  padding: 20px;
+}
+
+.apartment-price {
+  margin-bottom: 10px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #222;
+}
+
+.apartment-price span {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #777;
+}
+
+.apartment-info h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #333;
+}
+
+.apartment-location {
+  margin: 5px 0 18px;
+  color: #666;
+}
+
+.apartment-details {
+  display: flex;
+  gap: 10px;
+}
+
+.apartment-details span {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: #f2f5f9;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.apartments-status {
+  text-align: center;
+  color: #666;
+}
+
+.apartments-status.error {
+  color: #d33;
+}
+
+@media (max-width: 700px) {
+  .my-apartments {
+    padding: 25px 10px;
+  }
+
+  .apartments-container h1 {
+    font-size: 1.7rem;
+    margin-bottom: 22px;
+  }
+
+  .apartments-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .apartment-image {
+    height: 210px;
+  }
+
+  .apartment-info {
+    padding: 16px;
+  }
+}

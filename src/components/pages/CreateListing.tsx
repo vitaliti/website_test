@@ -37,7 +37,7 @@ async function handleSubmit(event: React.SubmitEvent) {
     return;
   }
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("Apartments")
     .insert({
       creator_id: user.id,

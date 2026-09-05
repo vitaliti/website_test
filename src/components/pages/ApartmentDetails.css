@@ -1,0 +1,137 @@
+.apartment-details-page {
+  width: 100%;
+  min-height: 100vh;
+  padding: 40px 20px;
+  box-sizing: border-box;
+}
+
+.apartment-details-container {
+  width: min(1000px, 100%);
+  margin: 0 auto;
+}
+
+.back-button {
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #f1f3f6;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.back-button:hover {
+  background-color: #e5e8ec;
+}
+
+.apartment-details-card {
+  overflow: hidden;
+  background-color: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.apartment-details-image {
+  width: 100%;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f3f6;
+  color: #888;
+}
+
+.apartment-details-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.apartment-details-content {
+  padding: 30px;
+}
+
+.apartment-details-price {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #222;
+}
+
+.apartment-details-price span {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #777;
+}
+
+.apartment-details-content h1 {
+  margin: 10px 0 5px;
+  font-size: 1.8rem;
+}
+
+.apartment-details-location {
+  margin: 0 0 30px;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.apartment-details-info {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.apartment-details-info div {
+  padding: 15px;
+  border-radius: 10px;
+  background-color: #f5f6f8;
+}
+
+.apartment-details-info strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.apartment-details-info span {
+  font-size: 1rem;
+  color: #222;
+}
+
+.apartment-details-error {
+  color: #d33;
+}
+
+@media (max-width: 700px) {
+  .apartment-details-page {
+    padding: 25px 10px;
+  }
+
+  .apartment-details-image {
+    height: 280px;
+  }
+
+  .apartment-details-content {
+    padding: 20px;
+  }
+
+  .apartment-details-price {
+    font-size: 1.6rem;
+  }
+
+  .apartment-details-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .apartment-details-info {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 450px) {
+  .apartment-details-info {
+    grid-template-columns: 1fr;
+  }
+}

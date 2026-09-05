@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { useNavigate } from "react-router-dom";
+
 import "./MyApartments.css";
 
 type Apartment = {
@@ -16,6 +18,7 @@ type Apartment = {
 };
 
 export default function MyApartments() {
+  const navigate = useNavigate();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,7 +87,7 @@ export default function MyApartments() {
         ) : (
           <div className="apartments-grid">
             {apartments.map((apartment) => (
-              <article className="apartment-card" key={apartment.id}>
+              <article className="apartment-card" key={apartment.id} onClick={() => navigate(`/my-apartments/${apartment.id}`)}>
                 <div className="apartment-image">
                   {apartment.picture ? (
                     <img

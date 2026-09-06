@@ -11,6 +11,7 @@ type ApartmentImage = {
 
 type Apartment = {
   id: string;
+  creator_id: string;
   city: string;
   neighborhood: string;
   price: number;
@@ -30,6 +31,7 @@ export default function ApartmentDetails() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadApartment() {
@@ -38,6 +40,12 @@ export default function ApartmentDetails() {
         setLoading(false);
         return;
       }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setCurrentUserId(user?.id ?? null);
 
       const { data: apartmentData, error: apartmentError } =
         await supabase
@@ -160,6 +168,18 @@ export default function ApartmentDetails() {
           )}
 
           <div className="apartment-details-content">
+
+            {currentUserId === apartment.creator_id && (
+              <div className="apartment-owner-actions">
+                <button onClick={() => navigate(`/apartments/${apartment.id}/edit`)}>
+                  Edit
+                </button>
+
+                <button onClick={() => console.log("Delete clicked")}>
+                  Delete
+                </button>
+              </div>
+            )}
 
             <div className="apartment-details-price">
               €{apartment.price}

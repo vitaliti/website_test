@@ -5,6 +5,7 @@ import Profile from "./pages/Profile";
 import CreateListing from "./pages/CreateListing";
 import MyApartments from "./pages/MyApartments";
 import ApartmentDetails from "./pages/ApartmentDetails";
+import EditApartment from "./pages/EditApartment";
 
 export default function Main() {
   return (
@@ -16,6 +17,7 @@ export default function Main() {
         <Route path="/create-listing" element={<CreateListing />} />
         <Route path="/my-apartments" element={<MyApartments />} />
         <Route path="/apartments/:id" element={<ApartmentDetails />} />
+        <Route path="/apartments/:id/edit" element={<EditApartment />} />
       </Routes>
     </main>
   );

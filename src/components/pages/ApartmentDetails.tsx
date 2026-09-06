@@ -114,6 +114,55 @@ export default function ApartmentDetails() {
         .getPublicUrl(selectedImageData.image_path).data.publicUrl
     : null;
 
+  async function handleDelete() {
+    if (!id) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this apartment?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const { data: images, error: imagesError } = await supabase
+      .from("ApartmentImages")
+      .select("image_path")
+      .eq("apartment_id", id);
+
+    if (imagesError) {
+      console.error("Error loading apartment images:", imagesError);
+      return;
+    }
+
+    if (images && images.length > 0) {
+      const imagePaths = images.map((image) => image.image_path);
+
+      const { error: storageError } = await supabase.storage
+        .from("apartment-images")
+        .remove(imagePaths);
+
+      if (storageError) {
+        console.error("Error deleting apartment images:", storageError);
+        return;
+      }
+    }
+
+    const { error } = await supabase
+      .from("Apartments")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting apartment:", error);
+      return;
+    }
+
+    navigate("/my-apartments");
+  }
+
   return (
     <main className="apartment-details-page">
       <div className="apartment-details-container">
@@ -175,7 +224,7 @@ export default function ApartmentDetails() {
                   Edit
                 </button>
 
-                <button onClick={() => console.log("Delete clicked")}>
+                <button onClick={handleDelete}>
                   Delete
                 </button>
               </div>

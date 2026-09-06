@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 export default function SignIn() {
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -48,15 +47,6 @@ export default function SignIn() {
   return (
     <main className="auth">
       <h1>{isRegistering ? "Register" : "Sign in"}</h1>
-
-      {isRegistering && (
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      )}
 
       <input
         type="email"

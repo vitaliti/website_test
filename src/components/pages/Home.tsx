@@ -1,69 +1,275 @@
 import "./Home.css";
-import { useState } from "react";
-import SelectFilter from "../sub_components/SelectFilter";
-import InputFilter from "../sub_components/InputFilter";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
 
 export default function Home() {
-  const [bedrooms, setBedrooms] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [budget, setBudget] = useState("");
+    const [city, setCity] = useState("");
+    const [neighborhoodId, setNeighborhoodId] = useState("");
+    const [price, setPrice] = useState("");
+    const [floor, setFloor] = useState("");
+    const [rooms, setRooms] = useState("");
+    const [ac, setAc] = useState(false);
+    const [storage, setStorage] = useState(false);
+    const [garage, setGarage] = useState(false);
 
-  return (
-    <div className="home">
-      <h1>Find your apartment in Sofia.</h1>
-      <p>Search rentals across the city — no account needed.</p>
+    const [neighborhoods, setNeighborhoods] = useState<
+        { id: string; name: string }[]
+    >([]);
 
-      <div className="filters">
-        <InputFilter
-          label="Budget"
-          placeholder="e.g 600"
-          value={budget}
-          onChange={setBudget}>
-        </InputFilter>
+    const [apartments, setApartments] = useState<any[]>([]);
 
-        <SelectFilter
-          label="Bedrooms"
-          value={bedrooms}
-          onChange={setBedrooms}
-          options={[
-            {value: "", label: "Any"},
-            {value: "1", label: "1 bedroom"},
-            {value: "2", label: "2 bedrooms"},
-            {value: "3", label: "3 bedrooms"},
-            {value: "4", label: "4+ bedrooms"}
-          ]}
-        />
+    useEffect(() => {
+        async function loadNeighborhoods() {
+            const { data, error } = await supabase
+                .from("Neighborhoods")
+                .select("id, name")
+                .order("name");
 
-        <SelectFilter
-          label="Neighbourhoods"
-          value={neighborhood}
-          onChange={setNeighborhood}
-          options={[
-            {value: "", label: "Any"},
-            {value: "lozenec", label: "Lozenec"},
-            {value: "vitosha", label: "Vitosha"}
-          ]}
-        />
+            if (error) {
+                console.error("Error loading neighborhoods:", error);
+                return;
+            }
 
-        <div className="filter">
-          <span>Neghbourhood</span>
-          <input placeholder="e.g 600" />
+            setNeighborhoods(data ?? []);
+        }
+
+        loadNeighborhoods();
+    }, []);
+
+  async function handleSearch() {
+      let query = supabase
+          .from("Apartments")
+          .select(`
+              id,
+              city,
+              neighborhood_id,
+              price,
+              floor,
+              rooms,
+              storage,
+              ac,
+              garage,
+              Neighborhoods (
+                  name
+              )
+          `);
+
+      if (city.trim() !== "") {
+          query = query.ilike("city", `%${city.trim()}%`);
+      }
+
+      if (neighborhoodId !== "") {
+          query = query.eq("neighborhood_id", neighborhoodId);
+      }
+
+      if (price !== "") {
+          query = query.lte("price", Number(price));
+      }
+
+      if (floor !== "") {
+          query = query.eq("floor", Number(floor));
+      }
+
+      if (rooms !== "") {
+          query = query.eq("rooms", Number(rooms));
+      }
+
+      if (ac) {
+          query = query.eq("ac", true);
+      }
+
+      if (storage) {
+          query = query.eq("storage", true);
+      }
+
+      if (garage) {
+          query = query.eq("garage", true);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+          console.error("Error searching apartments:", error);
+          return;
+      }
+
+      const apartmentsWithImages = await Promise.all(
+          (data ?? []).map(async (apartment) => {
+              const { data: imageData, error: imageError } = await supabase
+                  .from("ApartmentImages")
+                  .select("image_path")
+                  .eq("apartment_id", apartment.id)
+                  .order("id")
+                  .limit(1)
+                  .maybeSingle();
+
+              if (imageError) {
+                  console.error("Error loading apartment image:", imageError);
+              }
+
+              let imageUrl = null;
+
+              if (imageData) {
+                  const { data: publicUrlData } = supabase.storage
+                      .from("apartment-images")
+                      .getPublicUrl(imageData.image_path);
+
+                  imageUrl = publicUrlData.publicUrl;
+              }
+
+              return {
+                  ...apartment,
+                  imageUrl,
+              };
+          })
+      );
+
+      setApartments(apartmentsWithImages);
+  }
+
+    return (
+        <div className="home">
+            <h1>Find your apartment in Sofia.</h1>
+            <p>Search rentals across the city — no account needed.</p>
+
+            <div className="filters">
+                <div className="filter">
+                    <label htmlFor="city">City</label>
+                    <input
+                        id="city"
+                        type="text"
+                        placeholder="e.g. Sofia"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                    />
+                </div>
+
+                <div className="filter">
+                    <label htmlFor="neighborhood">Neighborhood</label>
+                    <select
+                        id="neighborhood"
+                        value={neighborhoodId}
+                        onChange={(e) => setNeighborhoodId(e.target.value)}
+                    >
+                        <option value="">Any</option>
+                        {neighborhoods.map((neighborhood) => (
+                            <option key={neighborhood.id} value={neighborhood.id}>
+                                {neighborhood.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter">
+                    <label htmlFor="price">Price</label>
+                    <input
+                        id="price"
+                        type="number"
+                        placeholder="e.g. 600"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                    />
+                </div>
+
+                <div className="filter">
+                    <label htmlFor="floor">Floor</label>
+                    <input
+                        id="floor"
+                        type="number"
+                        placeholder="e.g. 3"
+                        value={floor}
+                        onChange={(e) => setFloor(e.target.value)}
+                    />
+                </div>
+
+                <div className="filter">
+                    <label htmlFor="rooms">Rooms</label>
+                    <input
+                        id="rooms"
+                        type="number"
+                        placeholder="e.g. 2"
+                        value={rooms}
+                        onChange={(e) => setRooms(e.target.value)}
+                    />
+                </div>
+
+                <div className="filter-checkboxes">
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={ac}
+                            onChange={(e) => setAc(e.target.checked)}
+                        />
+                        AC
+                    </label>
+
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={storage}
+                            onChange={(e) => setStorage(e.target.checked)}
+                        />
+                        Storage
+                    </label>
+
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={garage}
+                            onChange={(e) => setGarage(e.target.checked)}
+                        />
+                        Garage
+                    </label>
+                </div>
+
+                <button
+                    className="search-button"
+                    type="button"
+                    onClick={handleSearch}
+                >
+                    Search
+                </button>
+            </div>
+
+            {apartments.length > 0 && (
+                <div className="search-results">
+                    <h2>Available apartments</h2>
+
+                    <div className="apartment-results">
+                      {apartments.map((apartment) => (
+                          <Link
+                              to={`/apartments/${apartment.id}`}
+                              className="apartment-card"
+                              key={apartment.id}
+                          >
+                              {apartment.imageUrl ? (
+                                  <img
+                                      className="apartment-image"
+                                      src={apartment.imageUrl}
+                                      alt="Apartment"
+                                  />
+                              ) : (
+                                  <div className="apartment-image apartment-image-placeholder">
+                                      No image
+                                  </div>
+                              )}
+
+                              <div className="apartment-info">
+                                  <h3>{apartment.price} €</h3>
+                                  <p className="apartment-location">{apartment.Neighborhoods?.name}, {apartment.city}</p>
+                                  <p className="apartment-details">{apartment.rooms} rooms · Floor {apartment.floor}</p>
+                                  <div className="apartment-features">
+                                      {apartment.ac && <span>AC</span>}
+                                      {apartment.storage && <span>Storage</span>}
+                                      {apartment.garage && <span>Garage</span>}
+                                  </div>
+                              </div>
+                          </Link>
+                      ))}
+                    </div>
+                </div>
+            )}
         </div>
-
-        <div className="filter">
-          <span>Furnished</span>
-          <input placeholder="e.g Yes" />
-        </div>
-
-        <div className="filter">
-          <span>floor</span>
-          <input placeholder="e.g 1" />
-        </div>
-
-        {/* <button>Search</button> */}
-      </div>
-
-    </div>
-  );
+    );
 }
-

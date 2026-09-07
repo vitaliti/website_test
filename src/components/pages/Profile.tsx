@@ -259,7 +259,14 @@ export default function Profile() {
             </div>
 
             {!editing && (
-              <button className="profile-edit-button" onClick={() => setEditing(true)}>
+              <button
+                className="profile-edit-button"
+                onClick={() => {
+                  setUsername(profile.username);
+                  setBio(profile.bio ?? "");
+                  setEditing(true);
+                }}
+              >
                 Edit Profile
               </button>
             )}

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useProfile } from "./../components/sub_components/ProfileContext";
 import homeIcon from "./../assets/home.svg";
 import profileIcon from "./../assets/profile.svg";
 import "./Header.css";
 
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { profile } = useProfile();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -24,6 +26,12 @@ export default function Header() {
     };
   }, []);
 
+  const profilePictureUrl = profile?.profile_picture_path
+    ? supabase.storage
+        .from("profile-pictures")
+        .getPublicUrl(profile.profile_picture_path).data.publicUrl
+    : null;
+
   return (
     <header className="header">
       <Link to="/">
@@ -32,15 +40,20 @@ export default function Header() {
           <span>Sofia Homes</span>
         </div>
       </Link>
+
       {isLoggedIn ? (
         <Link to="/profile" className="profile-button">
-          <img src={profileIcon} alt="Profile" />
+          {profilePictureUrl ? (
+            <img src={profilePictureUrl} alt="Profile" />
+          ) : (
+            <img src={profileIcon} alt="Profile" />
+          )}
         </Link>
       ) : (
         <Link to="/sign-in">Sign in</Link>
       )}
+
       <Link to="/my-apartments">List your apartment</Link>
     </header>
   );
 }
-

@@ -5,13 +5,14 @@
 import './App.css'
 import Header from './components/Header'
 import Main from './components/Main'
+import { ProfileProvider } from "./components/sub_components/ProfileContext";
 
 function App() {
   return (
-    <>
-    <Header/>
-    <Main/>
-    </>
+    <ProfileProvider>
+      <Header/>
+      <Main/>
+    </ProfileProvider>
   )
 }
 

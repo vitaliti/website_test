@@ -1,16 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import "./Profile.css";
+import { useProfile } from "../../components/sub_components/ProfileContext";
 
-type ProfileData = {
-  id: string;
-  username: string;
-  profile_picture_path: string | null;
-  bio: string | null;
-  created_at: string;
-  updated_at: string;
-};
+import "./Profile.css";
 
 type Apartment = {
   id: string;
@@ -26,20 +19,18 @@ type Apartment = {
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
-
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    async function loadProfile() {
+    async function loadApartments() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -49,28 +40,9 @@ export default function Profile() {
         return;
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("Profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) {
-        console.error("Error loading profile:", profileError);
-        setMessage("Failed to load profile.");
-        setLoading(false);
-        return;
-      }
-
-      setProfile(profileData);
-      setUsername(profileData.username);
-      setBio(profileData.bio ?? "");
-
       const { data: apartmentData, error: apartmentError } = await supabase
         .from("Apartments")
-        .select(
-          "id, city, neighborhood, price, floor, rooms, storage, ac, garage"
-        )
+        .select("id, city, neighborhood, price, floor, rooms, storage, ac, garage")
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -80,15 +52,97 @@ export default function Profile() {
       } else {
         setApartments(apartmentData ?? []);
       }
-
-      setLoading(false);
     }
 
-    loadProfile();
+    loadApartments();
   }, [navigate]);
+
+  async function handlePictureChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file || !profile) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setMessage("Please select an image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("The image must be smaller than 5 MB.");
+      return;
+    }
+
+    setUploadingPicture(true);
+    setMessage("");
+
+    const filePath = `${profile.id}/${crypto.randomUUID()}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("profile-pictures")
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading profile picture:", uploadError);
+      setMessage("Failed to upload profile picture.");
+      setUploadingPicture(false);
+      return;
+    }
+
+    const oldPicturePath = profile.profile_picture_path;
+
+    const { data, error: updateError } = await supabase
+      .from("Profiles")
+      .update({
+        profile_picture_path: filePath,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error("Error updating profile picture path:", updateError);
+
+      await supabase.storage
+        .from("profile-pictures")
+        .remove([filePath]);
+
+      setMessage("Failed to update profile picture.");
+      setUploadingPicture(false);
+      return;
+    }
+
+    if (oldPicturePath) {
+      const { error: deleteError } = await supabase.storage
+        .from("profile-pictures")
+        .remove([oldPicturePath]);
+
+      if (deleteError) {
+        console.error("Error deleting old profile picture:", deleteError);
+      }
+    }
+
+    updateProfile(data);
+    setUploadingPicture(false);
+    setMessage("Profile picture updated successfully.");
+
+    event.target.value = "";
+  }
 
   async function handleSaveProfile() {
     if (!profile) {
+      return;
+    }
+
+    const trimmedUsername = username.trim();
+
+    if (!trimmedUsername) {
+      setMessage("Username cannot be empty.");
       return;
     }
 
@@ -98,7 +152,7 @@ export default function Profile() {
     const { data, error } = await supabase
       .from("Profiles")
       .update({
-        username: username.trim(),
+        username: trimmedUsername,
         bio: bio.trim() || null,
         updated_at: new Date().toISOString(),
       })
@@ -113,7 +167,7 @@ export default function Profile() {
       return;
     }
 
-    setProfile(data);
+    updateProfile(data);
     setUsername(data.username);
     setBio(data.bio ?? "");
     setEditing(false);
@@ -143,7 +197,7 @@ export default function Profile() {
     navigate("/");
   }
 
-  if (loading) {
+  if (profileLoading) {
     return <p className="profile-status">Loading...</p>;
   }
 
@@ -153,6 +207,12 @@ export default function Profile() {
 
   const memberSince = new Date(profile.created_at).toLocaleDateString();
 
+  const profilePictureUrl = profile.profile_picture_path
+    ? supabase.storage
+        .from("profile-pictures")
+        .getPublicUrl(profile.profile_picture_path).data.publicUrl
+    : null;
+
   return (
     <main className="profile-page">
       <div className="profile-container">
@@ -160,20 +220,30 @@ export default function Profile() {
         <section className="profile-card">
           <div className="profile-header">
 
-            <div className="profile-picture">
-              {profile.profile_picture_path ? (
-                <img
-                  src={
-                    supabase.storage
-                      .from("profile-pictures")
-                      .getPublicUrl(profile.profile_picture_path).data.publicUrl
-                  }
-                  alt="Profile"
-                />
-              ) : (
-                <span>
-                  {profile.username.charAt(0).toUpperCase()}
-                </span>
+            <div className="profile-picture-container">
+              <div className="profile-picture">
+                {profilePictureUrl ? (
+                  <img src={profilePictureUrl} alt="Profile" />
+                ) : (
+                  <span>{profile.username.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+
+              {editing && (
+                <>
+                  <label htmlFor="profile-picture" className="profile-picture-button">
+                    {uploadingPicture ? "Uploading..." : "Change Picture"}
+                  </label>
+
+                  <input
+                    id="profile-picture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePictureChange}
+                    disabled={uploadingPicture}
+                    hidden
+                  />
+                </>
               )}
             </div>
 
@@ -181,9 +251,7 @@ export default function Profile() {
               {!editing ? (
                 <>
                   <h1>{profile.username}</h1>
-                  <p className="profile-member">
-                    Member since {memberSince}
-                  </p>
+                  <p className="profile-member">Member since {memberSince}</p>
                 </>
               ) : (
                 <h1>Edit Profile</h1>
@@ -191,10 +259,7 @@ export default function Profile() {
             </div>
 
             {!editing && (
-              <button
-                className="profile-edit-button"
-                onClick={() => setEditing(true)}
-              >
+              <button className="profile-edit-button" onClick={() => setEditing(true)}>
                 Edit Profile
               </button>
             )}
@@ -204,9 +269,7 @@ export default function Profile() {
             <>
               <div className="profile-bio">
                 <h2>About</h2>
-                <p>
-                  {profile.bio || "No bio yet."}
-                </p>
+                <p>{profile.bio || "No bio yet."}</p>
               </div>
 
               <div className="profile-stats">
@@ -223,6 +286,7 @@ export default function Profile() {
             </>
           ) : (
             <div className="profile-edit-form">
+
               <div className="profile-field">
                 <label htmlFor="username">Username</label>
                 <input
@@ -248,7 +312,7 @@ export default function Profile() {
                 <button
                   className="profile-save-button"
                   onClick={handleSaveProfile}
-                  disabled={saving}
+                  disabled={saving || uploadingPicture}
                 >
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
@@ -256,7 +320,7 @@ export default function Profile() {
                 <button
                   className="profile-cancel-button"
                   onClick={handleCancelEdit}
-                  disabled={saving}
+                  disabled={saving || uploadingPicture}
                 >
                   Cancel
                 </button>
@@ -264,11 +328,7 @@ export default function Profile() {
             </div>
           )}
 
-          {message && (
-            <p className="profile-message">
-              {message}
-            </p>
-          )}
+          {message && <p className="profile-message">{message}</p>}
         </section>
 
         <section className="profile-listings">
@@ -284,18 +344,14 @@ export default function Profile() {
           </div>
 
           {apartments.length === 0 ? (
-            <p className="profile-empty">
-              You don't have any active listings yet.
-            </p>
+            <p className="profile-empty">You don't have any active listings yet.</p>
           ) : (
             <div className="profile-listings-grid">
               {apartments.map((apartment) => (
                 <div
                   key={apartment.id}
                   className="profile-listing-card"
-                  onClick={() =>
-                    navigate(`/apartments/${apartment.id}`)
-                  }
+                  onClick={() => navigate(`/apartments/${apartment.id}`)}
                 >
                   <div className="profile-listing-info">
                     <div className="profile-listing-price">
@@ -315,17 +371,9 @@ export default function Profile() {
                     <div className="profile-listing-details">
                       <span>Floor {apartment.floor}</span>
 
-                      {apartment.storage && (
-                        <span>Storage</span>
-                      )}
-
-                      {apartment.garage && (
-                        <span>Garage</span>
-                      )}
-
-                      {apartment.ac && (
-                        <span>AC</span>
-                      )}
+                      {apartment.storage && <span>Storage</span>}
+                      {apartment.garage && <span>Garage</span>}
+                      {apartment.ac && <span>AC</span>}
                     </div>
                   </div>
                 </div>
@@ -335,10 +383,7 @@ export default function Profile() {
         </section>
 
         <section className="profile-account">
-          <button
-            className="profile-logout-button"
-            onClick={handleLogout}
-          >
+          <button className="profile-logout-button" onClick={handleLogout}>
             Log out
           </button>
         </section>

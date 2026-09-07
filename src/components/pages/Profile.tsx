@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useProfile } from "../../components/sub_components/ProfileContext";
 
@@ -19,7 +19,11 @@ type Apartment = {
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
+
+  const [displayedProfile, setDisplayedProfile] = useState(profile);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [username, setUsername] = useState("");
@@ -28,22 +32,50 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadApartments() {
+    async function loadProfilePage() {
+      setLoading(true);
+      setMessage("");
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) {
+      if (user) {
+        setCurrentUserId(user.id);
+      }
+
+      const profileId = id ?? user?.id;
+
+      if (!profileId) {
         navigate("/sign-in");
         return;
       }
 
+      const { data: profileData, error: profileError } = await supabase
+        .from("Profiles")
+        .select("*")
+        .eq("id", profileId)
+        .single();
+
+      if (profileError) {
+        console.error("Error loading profile:", profileError);
+        setDisplayedProfile(null);
+        setMessage("Profile not found.");
+        setLoading(false);
+        return;
+      }
+
+      setDisplayedProfile(profileData);
+
       const { data: apartmentData, error: apartmentError } = await supabase
         .from("Apartments")
-        .select("id, city, neighborhood, price, floor, rooms, storage, ac, garage")
-        .eq("creator_id", user.id)
+        .select(
+          "id, city, neighborhood, price, floor, rooms, storage, ac, garage"
+        )
+        .eq("creator_id", profileId)
         .order("created_at", { ascending: false });
 
       if (apartmentError) {
@@ -52,15 +84,19 @@ export default function Profile() {
       } else {
         setApartments(apartmentData ?? []);
       }
+
+      setLoading(false);
     }
 
-    loadApartments();
-  }, [navigate]);
+    loadProfilePage();
+  }, [id, navigate]);
 
-  async function handlePictureChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePictureChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
     const file = event.target.files?.[0];
 
-    if (!file || !profile) {
+    if (!file || !displayedProfile) {
       return;
     }
 
@@ -77,7 +113,7 @@ export default function Profile() {
     setUploadingPicture(true);
     setMessage("");
 
-    const filePath = `${profile.id}/${crypto.randomUUID()}-${file.name}`;
+    const filePath = `${displayedProfile.id}/${crypto.randomUUID()}-${file.name}`;
 
     const { error: uploadError } = await supabase.storage
       .from("profile-pictures")
@@ -93,7 +129,7 @@ export default function Profile() {
       return;
     }
 
-    const oldPicturePath = profile.profile_picture_path;
+    const oldPicturePath = displayedProfile.profile_picture_path;
 
     const { data, error: updateError } = await supabase
       .from("Profiles")
@@ -101,7 +137,7 @@ export default function Profile() {
         profile_picture_path: filePath,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", profile.id)
+      .eq("id", displayedProfile.id)
       .select()
       .single();
 
@@ -127,6 +163,7 @@ export default function Profile() {
       }
     }
 
+    setDisplayedProfile(data);
     updateProfile(data);
     setUploadingPicture(false);
     setMessage("Profile picture updated successfully.");
@@ -135,7 +172,7 @@ export default function Profile() {
   }
 
   async function handleSaveProfile() {
-    if (!profile) {
+    if (!displayedProfile) {
       return;
     }
 
@@ -156,7 +193,7 @@ export default function Profile() {
         bio: bio.trim() || null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", profile.id)
+      .eq("id", displayedProfile.id)
       .select()
       .single();
 
@@ -167,6 +204,7 @@ export default function Profile() {
       return;
     }
 
+    setDisplayedProfile(data);
     updateProfile(data);
     setUsername(data.username);
     setBio(data.bio ?? "");
@@ -176,12 +214,12 @@ export default function Profile() {
   }
 
   function handleCancelEdit() {
-    if (!profile) {
+    if (!displayedProfile) {
       return;
     }
 
-    setUsername(profile.username);
-    setBio(profile.bio ?? "");
+    setUsername(displayedProfile.username);
+    setBio(displayedProfile.bio ?? "");
     setEditing(false);
     setMessage("");
   }
@@ -197,41 +235,52 @@ export default function Profile() {
     navigate("/");
   }
 
-  if (profileLoading) {
+  if (profileLoading || loading) {
     return <p className="profile-status">Loading...</p>;
   }
 
-  if (!profile) {
-    return <p className="profile-status">{message || "Profile not found."}</p>;
+  if (!displayedProfile) {
+    return (
+      <p className="profile-status">
+        {message || "Profile not found."}
+      </p>
+    );
   }
 
-  const memberSince = new Date(profile.created_at).toLocaleDateString();
+  const isOwnProfile = currentUserId === displayedProfile.id;
 
-  const profilePictureUrl = profile.profile_picture_path
+  const memberSince = new Date(
+    displayedProfile.created_at
+  ).toLocaleDateString();
+
+  const profilePictureUrl = displayedProfile.profile_picture_path
     ? supabase.storage
         .from("profile-pictures")
-        .getPublicUrl(profile.profile_picture_path).data.publicUrl
+        .getPublicUrl(displayedProfile.profile_picture_path).data.publicUrl
     : null;
 
   return (
     <main className="profile-page">
       <div className="profile-container">
-
         <section className="profile-card">
           <div className="profile-header">
-
             <div className="profile-picture-container">
               <div className="profile-picture">
                 {profilePictureUrl ? (
                   <img src={profilePictureUrl} alt="Profile" />
                 ) : (
-                  <span>{profile.username.charAt(0).toUpperCase()}</span>
+                  <span>
+                    {displayedProfile.username.charAt(0).toUpperCase()}
+                  </span>
                 )}
               </div>
 
-              {editing && (
+              {isOwnProfile && editing && (
                 <>
-                  <label htmlFor="profile-picture" className="profile-picture-button">
+                  <label
+                    htmlFor="profile-picture"
+                    className="profile-picture-button"
+                  >
                     {uploadingPicture ? "Uploading..." : "Change Picture"}
                   </label>
 
@@ -248,22 +297,24 @@ export default function Profile() {
             </div>
 
             <div className="profile-header-info">
-              {!editing ? (
+              {!editing || !isOwnProfile ? (
                 <>
-                  <h1>{profile.username}</h1>
-                  <p className="profile-member">Member since {memberSince}</p>
+                  <h1>{displayedProfile.username}</h1>
+                  <p className="profile-member">
+                    Member since {memberSince}
+                  </p>
                 </>
               ) : (
                 <h1>Edit Profile</h1>
               )}
             </div>
 
-            {!editing && (
+            {isOwnProfile && !editing && (
               <button
                 className="profile-edit-button"
                 onClick={() => {
-                  setUsername(profile.username);
-                  setBio(profile.bio ?? "");
+                  setUsername(displayedProfile.username);
+                  setBio(displayedProfile.bio ?? "");
                   setEditing(true);
                 }}
               >
@@ -272,11 +323,11 @@ export default function Profile() {
             )}
           </div>
 
-          {!editing ? (
+          {!editing || !isOwnProfile ? (
             <>
               <div className="profile-bio">
                 <h2>About</h2>
-                <p>{profile.bio || "No bio yet."}</p>
+                <p>{displayedProfile.bio || "No bio yet."}</p>
               </div>
 
               <div className="profile-stats">
@@ -293,7 +344,6 @@ export default function Profile() {
             </>
           ) : (
             <div className="profile-edit-form">
-
               <div className="profile-field">
                 <label htmlFor="username">Username</label>
                 <input
@@ -340,25 +390,35 @@ export default function Profile() {
 
         <section className="profile-listings">
           <div className="profile-listings-header">
-            <h2>Your Listings</h2>
+            <h2>
+              {isOwnProfile ? "Your Listings" : "Listings"}
+            </h2>
 
-            <button
-              className="profile-create-button"
-              onClick={() => navigate("/create-listing")}
-            >
-              Create Listing
-            </button>
+            {isOwnProfile && (
+              <button
+                className="profile-create-button"
+                onClick={() => navigate("/create-listing")}
+              >
+                Create Listing
+              </button>
+            )}
           </div>
 
           {apartments.length === 0 ? (
-            <p className="profile-empty">You don't have any active listings yet.</p>
+            <p className="profile-empty">
+              {isOwnProfile
+                ? "You don't have any active listings yet."
+                : "This user doesn't have any active listings yet."}
+            </p>
           ) : (
             <div className="profile-listings-grid">
               {apartments.map((apartment) => (
                 <div
                   key={apartment.id}
                   className="profile-listing-card"
-                  onClick={() => navigate(`/apartments/${apartment.id}`)}
+                  onClick={() =>
+                    navigate(`/apartments/${apartment.id}`)
+                  }
                 >
                   <div className="profile-listing-info">
                     <div className="profile-listing-price">
@@ -377,7 +437,6 @@ export default function Profile() {
 
                     <div className="profile-listing-details">
                       <span>Floor {apartment.floor}</span>
-
                       {apartment.storage && <span>Storage</span>}
                       {apartment.garage && <span>Garage</span>}
                       {apartment.ac && <span>AC</span>}
@@ -389,12 +448,16 @@ export default function Profile() {
           )}
         </section>
 
-        <section className="profile-account">
-          <button className="profile-logout-button" onClick={handleLogout}>
-            Log out
-          </button>
-        </section>
-
+        {isOwnProfile && (
+          <section className="profile-account">
+            <button
+              className="profile-logout-button"
+              onClick={handleLogout}
+            >
+              Log out
+            </button>
+          </section>
+        )}
       </div>
     </main>
   );

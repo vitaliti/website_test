@@ -14,6 +14,7 @@ export default function Main() {
         <Route path="/" element={<Home />} />
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:id" element={<Profile />} />
         <Route path="/create-listing" element={<CreateListing />} />
         <Route path="/my-apartments" element={<MyApartments />} />
         <Route path="/apartments/:id" element={<ApartmentDetails />} />

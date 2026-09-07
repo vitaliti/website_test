@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import profileIcon from "../../assets/profile.svg";
 import "./ApartmentDetails.css";
+
+type CreatorProfile = {
+  id: string;
+  profile_picture_path: string | null;
+};
 
 type ApartmentImage = {
   id: string;
@@ -27,6 +33,7 @@ export default function ApartmentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -59,6 +66,18 @@ export default function ApartmentDetails() {
         setError("Failed to load apartment.");
         setLoading(false);
         return;
+      }
+
+      const { data: creatorData, error: creatorError } = await supabase
+        .from("Profiles")
+        .select("id, profile_picture_path")
+        .eq("id", apartmentData.creator_id)
+        .single();
+
+      if (creatorError) {
+        console.error("Error loading creator profile:", creatorError);
+      } else {
+        setCreatorProfile(creatorData);
       }
 
       const { data: imagesData, error: imagesError } = await supabase
@@ -217,6 +236,26 @@ export default function ApartmentDetails() {
           )}
 
           <div className="apartment-details-content">
+
+            {creatorProfile && (
+              <Link
+                to={`/profile/${creatorProfile.id}`}
+                className="apartment-creator"
+              >
+                {creatorProfile.profile_picture_path ? (
+                  <img
+                    src={
+                      supabase.storage
+                        .from("profile-pictures")
+                        .getPublicUrl(creatorProfile.profile_picture_path).data.publicUrl
+                    }
+                    alt="Listing creator"
+                  />
+                ) : (
+                  <img src={profileIcon} alt="Listing creator" />
+                )}
+              </Link>
+            )}
 
             {currentUserId === apartment.creator_id && (
               <div className="apartment-owner-actions">

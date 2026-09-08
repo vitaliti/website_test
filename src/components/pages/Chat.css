@@ -5,10 +5,12 @@
     height: calc(100vh - 100px);
     margin: 0 auto;
     border: 1px solid #ddd;
+    overflow: hidden;
 }
 
 .chat-list {
     width: 300px;
+    flex-shrink: 0;
     border-right: 1px solid #ddd;
     overflow-y: auto;
 }
@@ -60,11 +62,16 @@
     flex: 1;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
 }
 
 .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 20px;
     border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
 }
 
 .chat-header h2 {
@@ -72,9 +79,19 @@
     font-size: 1.3rem;
 }
 
+.chat-back-button {
+    display: none;
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
 .messages {
     display: flex;
     flex: 1;
+    min-height: 0;
     flex-direction: column;
     gap: 10px;
     padding: 20px;
@@ -85,6 +102,7 @@
     max-width: 70%;
     padding: 10px 15px;
     border-radius: 15px;
+    overflow-wrap: break-word;
 }
 
 .message-me {
@@ -102,6 +120,7 @@
     gap: 10px;
     padding: 15px;
     border-top: 1px solid #ddd;
+    flex-shrink: 0;
 }
 
 .message-input input {
@@ -117,4 +136,62 @@
     border: none;
     border-radius: 5px;
     cursor: pointer;
+}
+
+
+/* Mobile */
+
+@media (max-width: 768px) {
+    .chat-page {
+        width: 100%;
+        height: calc(100vh - 80px);
+        margin: 0;
+        border: none;
+    }
+
+    .chat-list {
+        width: 100%;
+        border-right: none;
+    }
+
+    .chat-window {
+        width: 100%;
+    }
+
+    .chat-list.mobile-hidden {
+        display: none;
+    }
+
+    .chat-window:not(.mobile-visible) {
+        display: none;
+    }
+
+    .chat-window.mobile-visible {
+        display: flex;
+        width: 100%;
+    }
+
+    .chat-header {
+        padding: 15px;
+    }
+
+    .chat-back-button {
+        display: block;
+    }
+
+    .messages {
+        padding: 15px;
+    }
+
+    .message {
+        max-width: 80%;
+    }
+
+    .message-input {
+        padding: 10px;
+    }
+
+    .message-input button {
+        padding: 10px 15px;
+    }
 }

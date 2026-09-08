@@ -43,6 +43,7 @@ export default function Chat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(true);
+    const [showMobileChat, setShowMobileChat] = useState(false);
 
     const selectedChat = chats.find(
         (chat) => chat.id === selectedChatId
@@ -152,6 +153,7 @@ export default function Chat() {
                 setSelectedChatId(existingChat.id);
                 setNewChatUserId(null);
                 setNewChatUsername(null);
+                setShowMobileChat(true);
             }
         }
 
@@ -170,6 +172,7 @@ export default function Chat() {
                 setSelectedChatId(existingConversation.id);
                 setNewChatUserId(null);
                 setNewChatUsername(null);
+                setShowMobileChat(true);
             } else {
                 const { data: profile, error: profileError } =
                     await supabase
@@ -188,6 +191,7 @@ export default function Chat() {
                     setNewChatUserId(profile.id);
                     setNewChatUsername(profile.username);
                     setMessages([]);
+                    setShowMobileChat(true);
                 }
             }
         }
@@ -385,7 +389,11 @@ export default function Chat() {
 
     return (
         <main className="chat-page">
-            <section className="chat-list">
+            <section
+                className={`chat-list ${
+                    showMobileChat ? "mobile-hidden" : ""
+                }`}
+            >
                 <h1>Chats</h1>
 
                 {chats.length === 0 ? (
@@ -401,6 +409,7 @@ export default function Chat() {
                                 setSelectedChatId(chat.id);
                                 setNewChatUserId(null);
                                 setNewChatUsername(null);
+                                setShowMobileChat(true);
                             }}
                         >
                             <strong>{chat.name}</strong>
@@ -410,10 +419,21 @@ export default function Chat() {
                 )}
             </section>
 
-            <section className="chat-window">
+            <section
+                className={`chat-window ${
+                    showMobileChat ? "mobile-visible" : ""
+                }`}
+            >
                 {selectedChat ? (
                     <>
                         <header className="chat-header">
+                            <button
+                                className="chat-back-button"
+                                onClick={() => setShowMobileChat(false)}
+                            >
+                                ←
+                            </button>
+
                             <h2>{selectedChat.name}</h2>
                         </header>
 
@@ -455,6 +475,13 @@ export default function Chat() {
                 ) : newChatUserId ? (
                     <>
                         <header className="chat-header">
+                            <button
+                                className="chat-back-button"
+                                onClick={() => setShowMobileChat(false)}
+                            >
+                                ←
+                            </button>
+
                             <h2>{newChatUsername}</h2>
                         </header>
 

@@ -28,6 +28,9 @@ export default function EditApartment() {
     const [garage, setGarage] = useState(false);
 
     const [images, setImages] = useState<ApartmentImage[]>([]);
+    const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
+    const [newPictures, setNewPictures] = useState<File[]>([]);
+
     const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
 
     const [loading, setLoading] = useState(true);
@@ -89,6 +92,19 @@ export default function EditApartment() {
                 return;
             }
 
+            const { data: imageData, error: imageError } = await supabase
+                .from("ApartmentImages")
+                .select("id, apartment_id, image_path, display_order")
+                .eq("apartment_id", id)
+                .order("display_order", { ascending: true });
+
+            if (imageError) {
+                console.error("Error loading apartment images:", imageError);
+                setError("Failed to load apartment images.");
+                setLoading(false);
+                return;
+            }
+
             setCity(data.city);
             setNeighborhoodId(data.neighborhood_id);
             setPrice(String(data.price));
@@ -97,27 +113,28 @@ export default function EditApartment() {
             setStorage(data.storage);
             setAc(data.ac);
             setGarage(data.garage);
-
-            const { data: imagesData, error: imagesError } = await supabase
-                .from("ApartmentImages")
-                .select("id, apartment_id, image_path, display_order")
-                .eq("apartment_id", id)
-                .order("display_order", { ascending: true });
-
-            if (imagesError) {
-                console.error("Error loading apartment images:", imagesError);
-                setError("Failed to load apartment images.");
-                setLoading(false);
-                return;
-            }
-
-            setImages(imagesData ?? []);
+            setImages(imageData ?? []);
 
             setLoading(false);
         }
 
         loadApartment();
     }, [id]);
+
+    function handleImageSelect(imageId: string) {
+        setSelectedImageIds((currentSelectedIds) => {
+            if (currentSelectedIds.includes(imageId)) {
+                return currentSelectedIds.filter((id) => id !== imageId);
+            }
+
+            return [...currentSelectedIds, imageId];
+        });
+    }
+
+    function handlePictureChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(event.target.files ?? []);
+        setNewPictures(files);
+    }
 
     function handleDragStart(imageId: string) {
         setDraggedImageId(imageId);
@@ -147,15 +164,89 @@ export default function EditApartment() {
             }
 
             const newImages = [...currentImages];
-
             const [draggedImage] = newImages.splice(draggedIndex, 1);
-
             newImages.splice(targetIndex, 0, draggedImage);
 
             return newImages;
         });
 
         setDraggedImageId(null);
+    }
+
+    async function handleDeleteSelectedImages() {
+        if (!id || selectedImageIds.length === 0) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Are you sure you want to delete ${selectedImageIds.length} selected image${selectedImageIds.length === 1 ? "" : "s"}?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setSaving(true);
+        setError("");
+
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+            setError("You must be logged in.");
+            setSaving(false);
+            return;
+        }
+
+        const imagesToDelete = images.filter((image) =>
+            selectedImageIds.includes(image.id)
+        );
+
+        const imagePaths = imagesToDelete.map((image) => image.image_path);
+
+        if (imagePaths.length > 0) {
+            const { error: storageError } = await supabase.storage
+                .from("apartment-images")
+                .remove(imagePaths);
+
+            if (storageError) {
+                console.error(
+                    "Error deleting apartment images from storage:",
+                    storageError
+                );
+                setError("Failed to delete images.");
+                setSaving(false);
+                return;
+            }
+        }
+
+        const { error: databaseError } = await supabase
+            .from("ApartmentImages")
+            .delete()
+            .in("id", selectedImageIds)
+            .eq("apartment_id", id);
+
+        if (databaseError) {
+            console.error(
+                "Error deleting apartment image records:",
+                databaseError
+            );
+            setError(
+                "Images were removed from storage, but their records could not be deleted."
+            );
+            setSaving(false);
+            return;
+        }
+
+        setImages((currentImages) =>
+            currentImages.filter(
+                (image) => !selectedImageIds.includes(image.id)
+            )
+        );
+
+        setSelectedImageIds([]);
+        setSaving(false);
     }
 
     async function handleSubmit(event: React.SubmitEvent) {
@@ -212,6 +303,64 @@ export default function EditApartment() {
             }
         }
 
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+            setError("You must be logged in.");
+            setSaving(false);
+            return;
+        }
+
+        try {
+            await Promise.all(
+                newPictures.map(async (picture, index) => {
+                    const displayOrder = images.length + index;
+
+                    const filePath = `${user.id}/${id}/${crypto.randomUUID()}-${picture.name}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from("apartment-images")
+                        .upload(filePath, picture, {
+                            contentType: picture.type,
+                            upsert: false,
+                        });
+
+                    if (uploadError) {
+                        throw new Error(
+                            "Apartment was updated, but an image failed to upload."
+                        );
+                    }
+
+                    const { error: imageRecordError } = await supabase
+                        .from("ApartmentImages")
+                        .insert({
+                            apartment_id: id,
+                            image_path: filePath,
+                            display_order: displayOrder,
+                        });
+
+                    if (imageRecordError) {
+                        throw new Error(
+                            "Image was uploaded, but its record failed to save."
+                        );
+                    }
+                })
+            );
+        } catch (error) {
+            console.error("Error adding apartment images:", error);
+
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to add apartment images."
+            );
+
+            setSaving(false);
+            return;
+        }
+
         navigate(`/apartments/${id}`);
     }
 
@@ -219,7 +368,7 @@ export default function EditApartment() {
         return <p>Loading...</p>;
     }
 
-    if (error) {
+    if (error && !images.length) {
         return <p>{error}</p>;
     }
 
@@ -239,6 +388,7 @@ export default function EditApartment() {
                         <div className="form-row">
                             <div className="form-field">
                                 <label htmlFor="city">City</label>
+
                                 <input
                                     id="city"
                                     type="text"
@@ -254,6 +404,7 @@ export default function EditApartment() {
                                 <label htmlFor="neighborhood">
                                     Neighborhood
                                 </label>
+
                                 <select
                                     id="neighborhood"
                                     value={neighborhoodId}
@@ -287,6 +438,7 @@ export default function EditApartment() {
                                 <label htmlFor="price">
                                     Price (€ / month)
                                 </label>
+
                                 <input
                                     id="price"
                                     type="number"
@@ -300,6 +452,7 @@ export default function EditApartment() {
 
                             <div className="form-field">
                                 <label htmlFor="floor">Floor</label>
+
                                 <input
                                     id="floor"
                                     type="number"
@@ -313,6 +466,7 @@ export default function EditApartment() {
 
                             <div className="form-field">
                                 <label htmlFor="rooms">Rooms</label>
+
                                 <input
                                     id="rooms"
                                     type="number"
@@ -338,6 +492,7 @@ export default function EditApartment() {
                                         setStorage(event.target.checked)
                                     }
                                 />
+
                                 <span>Storage</span>
                             </label>
 
@@ -349,6 +504,7 @@ export default function EditApartment() {
                                         setAc(event.target.checked)
                                     }
                                 />
+
                                 <span>Air Conditioning</span>
                             </label>
 
@@ -360,65 +516,109 @@ export default function EditApartment() {
                                         setGarage(event.target.checked)
                                     }
                                 />
+
                                 <span>Garage</span>
                             </label>
                         </div>
                     </div>
 
                     <div className="form-section">
-                        <h2>Apartment Pictures</h2>
+                        <h2>Pictures</h2>
 
-                        <p className="listing-description">
-                            Drag pictures to change their order. The first
-                            picture will be the main picture.
-                        </p>
+                        {images.length > 0 && (
+                            <>
+                                <div className="apartment-edit-images">
+                                    {images.map((image, index) => {
+                                        const imageUrl = supabase.storage
+                                            .from("apartment-images")
+                                            .getPublicUrl(image.image_path)
+                                            .data.publicUrl;
 
-                        {images.length === 0 ? (
-                            <p>No pictures uploaded.</p>
-                        ) : (
-                            <div className="apartment-edit-images">
-                                {images.map((image, index) => {
-                                    const imageUrl = supabase.storage
-                                        .from("apartment-images")
-                                        .getPublicUrl(image.image_path)
-                                        .data.publicUrl;
+                                        const isSelected =
+                                            selectedImageIds.includes(
+                                                image.id
+                                            );
 
-                                    return (
-                                        <div
-                                            className={
-                                                draggedImageId === image.id
-                                                    ? "apartment-edit-image dragging"
-                                                    : "apartment-edit-image"
-                                            }
-                                            key={image.id}
-                                            draggable
-                                            onDragStart={() =>
-                                                handleDragStart(image.id)
-                                            }
-                                            onDragEnd={handleDragEnd}
-                                            onDragOver={(event) =>
-                                                event.preventDefault()
-                                            }
-                                            onDrop={() =>
-                                                handleDrop(image.id)
-                                            }
-                                        >
-                                            <img
-                                                src={imageUrl}
-                                                alt={`Apartment picture ${
-                                                    index + 1
-                                                }`}
-                                            />
+                                        const isDragging =
+                                            draggedImageId === image.id;
 
-                                            <div className="apartment-edit-image-order">
-                                                Picture {index + 1}
-                                                {index === 0 && " (Main)"}
+                                        return (
+                                            <div
+                                                key={image.id}
+                                                draggable
+                                                onDragStart={() =>
+                                                    handleDragStart(image.id)
+                                                }
+                                                onDragEnd={handleDragEnd}
+                                                onDragOver={(event) =>
+                                                    event.preventDefault()
+                                                }
+                                                onDrop={() =>
+                                                    handleDrop(image.id)
+                                                }
+                                                onClick={() =>
+                                                    handleImageSelect(image.id)
+                                                }
+                                                className={`apartment-edit-image${isDragging ? " dragging" : ""}${isSelected ? " selected" : ""}`}
+                                            >
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={`Apartment ${index + 1}`}
+                                                />
+
+                                                <div className="apartment-edit-image-order">
+                                                    Picture {index + 1}
+                                                    {index === 0 && " (Main)"}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="image-actions">
+                                    <button
+                                        type="button"
+                                        className="delete-images-button"
+                                        onClick={handleDeleteSelectedImages}
+                                        disabled={
+                                            selectedImageIds.length === 0 ||
+                                            saving
+                                        }
+                                    >
+                                        Delete Selected
+                                        {selectedImageIds.length > 0 &&
+                                            ` (${selectedImageIds.length})`}
+                                    </button>
+                                </div>
+                            </>
                         )}
+
+                        <div className="form-field">
+                            <div className="picture-upload">
+                                <input
+                                    id="new-pictures"
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handlePictureChange}
+                                />
+
+                                <label
+                                    htmlFor="new-pictures"
+                                    className="picture-upload-button"
+                                >
+                                    Choose pictures
+                                </label>
+
+                                <span className="picture-upload-count">
+                                    {newPictures.length === 0
+                                        ? "No pictures selected"
+                                        : newPictures.length === 1
+                                          ? "1 picture selected"
+                                          : `${newPictures.length} pictures selected`}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     {error && (
@@ -447,3 +647,4 @@ export default function EditApartment() {
         </main>
     );
 }
+

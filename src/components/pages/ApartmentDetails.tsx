@@ -33,7 +33,8 @@ export default function ApartmentDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+    const [creatorProfile, setCreatorProfile] =
+        useState<CreatorProfile | null>(null);
     const [apartment, setApartment] = useState<Apartment | null>(null);
     const [selectedImage, setSelectedImage] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -103,7 +104,10 @@ export default function ApartmentDetails() {
                 .eq("apartment_id", id);
 
             if (imagesError) {
-                console.error("Error loading apartment images:", imagesError);
+                console.error(
+                    "Error loading apartment images:",
+                    imagesError
+                );
                 setError("Failed to load apartment images.");
                 setLoading(false);
                 return;
@@ -165,6 +169,35 @@ export default function ApartmentDetails() {
             return;
         }
 
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+            console.error("User is not logged in.");
+            return;
+        }
+
+        const { data: apartmentData, error: apartmentCheckError } =
+            await supabase
+                .from("Apartments")
+                .select("creator_id")
+                .eq("id", id)
+                .single();
+
+        if (apartmentCheckError) {
+            console.error(
+                "Error checking apartment ownership:",
+                apartmentCheckError
+            );
+            return;
+        }
+
+        if (apartmentData.creator_id !== user.id) {
+            console.error("User is not allowed to delete this apartment.");
+            return;
+        }
+
         const { data: images, error: imagesError } = await supabase
             .from("ApartmentImages")
             .select("image_path")
@@ -183,18 +216,74 @@ export default function ApartmentDetails() {
                 .remove(imagePaths);
 
             if (storageError) {
-                console.error("Error deleting apartment images:", storageError);
+                console.error(
+                    "Error deleting apartment images:",
+                    storageError
+                );
                 return;
             }
         }
 
-        const { error } = await supabase
+        const apartmentFolder = `${user.id}/${id}`;
+
+        const { data: folderContents, error: folderListError } =
+            await supabase.storage
+                .from("apartment-images")
+                .list(apartmentFolder);
+
+        if (folderListError) {
+            console.error(
+                "Error checking apartment folder:",
+                folderListError
+            );
+            return;
+        }
+
+        const emptyFolderPlaceholder = folderContents?.find(
+            (file) => file.name === ".emptyFolderPlaceholder"
+        );
+
+        if (emptyFolderPlaceholder) {
+            const { error: placeholderDeleteError } =
+                await supabase.storage
+                    .from("apartment-images")
+                    .remove([
+                        `${apartmentFolder}/.emptyFolderPlaceholder`,
+                    ]);
+
+            if (placeholderDeleteError) {
+                console.error(
+                    "Error deleting apartment folder placeholder:",
+                    placeholderDeleteError
+                );
+                return;
+            }
+        }
+
+        const { error: imageRecordsError } = await supabase
+            .from("ApartmentImages")
+            .delete()
+            .eq("apartment_id", id);
+
+        if (imageRecordsError) {
+            console.error(
+                "Error deleting apartment image records:",
+                imageRecordsError
+            );
+            return;
+        }
+
+        const { error: apartmentDeleteError } = await supabase
             .from("Apartments")
             .delete()
-            .eq("id", id);
+            .eq("id", id)
+            .eq("creator_id", user.id);
 
-        if (error) {
-            console.error("Error deleting apartment:", error);
+        if (apartmentDeleteError) {
+            console.error(
+                "Error deleting apartment:",
+                apartmentDeleteError
+            );
             return;
         }
 
@@ -204,7 +293,6 @@ export default function ApartmentDetails() {
     return (
         <main className="apartment-details-page">
             <div className="apartment-details-container">
-
                 <button
                     className="back-button"
                     onClick={() => navigate("/my-apartments")}
@@ -213,9 +301,7 @@ export default function ApartmentDetails() {
                 </button>
 
                 <div className="apartment-details-card">
-
                     <div className="apartment-details-image">
-
                         {selectedImageUrl ? (
                             <img
                                 src={selectedImageUrl}
@@ -224,7 +310,6 @@ export default function ApartmentDetails() {
                         ) : (
                             <span>No image available</span>
                         )}
-
                     </div>
 
                     {apartment.images.length > 1 && (
@@ -232,12 +317,15 @@ export default function ApartmentDetails() {
                             {apartment.images.map((image, index) => {
                                 const imageUrl = supabase.storage
                                     .from("apartment-images")
-                                    .getPublicUrl(image.image_path).data.publicUrl;
+                                    .getPublicUrl(image.image_path)
+                                    .data.publicUrl;
 
                                 return (
                                     <button
                                         key={image.id}
-                                        onClick={() => setSelectedImage(index)}
+                                        onClick={() =>
+                                            setSelectedImage(index)
+                                        }
                                         className={
                                             index === selectedImage
                                                 ? "apartment-thumbnail selected"
@@ -255,7 +343,6 @@ export default function ApartmentDetails() {
                     )}
 
                     <div className="apartment-details-content">
-
                         {creatorProfile && (
                             <Link
                                 to={`/profile/${creatorProfile.id}`}
@@ -266,19 +353,30 @@ export default function ApartmentDetails() {
                                         src={
                                             supabase.storage
                                                 .from("profile-pictures")
-                                                .getPublicUrl(creatorProfile.profile_picture_path).data.publicUrl
+                                                .getPublicUrl(
+                                                    creatorProfile.profile_picture_path
+                                                ).data.publicUrl
                                         }
                                         alt="Listing creator"
                                     />
                                 ) : (
-                                    <img src={profileIcon} alt="Listing creator" />
+                                    <img
+                                        src={profileIcon}
+                                        alt="Listing creator"
+                                    />
                                 )}
                             </Link>
                         )}
 
                         {currentUserId === apartment.creator_id && (
                             <div className="apartment-owner-actions">
-                                <button onClick={() => navigate(`/apartments/${apartment.id}/edit`)}>
+                                <button
+                                    onClick={() =>
+                                        navigate(
+                                            `/apartments/${apartment.id}/edit`
+                                        )
+                                    }
+                                >
                                     Edit
                                 </button>
 
@@ -300,7 +398,6 @@ export default function ApartmentDetails() {
                         </p>
 
                         <div className="apartment-details-info">
-
                             <div>
                                 <strong>Floor</strong>
                                 <span>{apartment.floor}</span>
@@ -313,21 +410,25 @@ export default function ApartmentDetails() {
 
                             <div>
                                 <strong>Storage</strong>
-                                <span>{apartment.storage ? "Yes" : "No"}</span>
+                                <span>
+                                    {apartment.storage ? "Yes" : "No"}
+                                </span>
                             </div>
 
                             <div>
                                 <strong>Air Conditioning</strong>
-                                <span>{apartment.ac ? "Yes" : "No"}</span>
+                                <span>
+                                    {apartment.ac ? "Yes" : "No"}
+                                </span>
                             </div>
 
                             <div>
                                 <strong>Garage</strong>
-                                <span>{apartment.garage ? "Yes" : "No"}</span>
+                                <span>
+                                    {apartment.garage ? "Yes" : "No"}
+                                </span>
                             </div>
-
                         </div>
-
                     </div>
                 </div>
             </div>

@@ -38,9 +38,7 @@ export default function CreateListing() {
         loadNeighborhoods();
     }, []);
 
-    function handlePictureChange(
-        event: React.ChangeEvent<HTMLInputElement>
-    ) {
+    function handlePictureChange(event: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(event.target.files ?? []);
         setPictures(files);
     }
@@ -84,7 +82,9 @@ export default function CreateListing() {
             return;
         }
 
-        for (const picture of pictures) {
+        for (let index = 0; index < pictures.length; index++) {
+            const picture = pictures[index];
+
             const filePath = `${user.id}/${data.id}/${crypto.randomUUID()}-${picture.name}`;
 
             const { error: uploadError } = await supabase.storage
@@ -106,6 +106,7 @@ export default function CreateListing() {
                 .insert({
                     apartment_id: data.id,
                     image_path: filePath,
+                    display_order: index,
                 });
 
             if (imageRecordError) {
@@ -136,6 +137,7 @@ export default function CreateListing() {
                         <div className="form-row">
                             <div className="form-field">
                                 <label htmlFor="city">City</label>
+
                                 <input
                                     id="city"
                                     type="text"
@@ -148,6 +150,7 @@ export default function CreateListing() {
 
                             <div className="form-field">
                                 <label htmlFor="neighborhood">Neighborhood</label>
+
                                 <select
                                     id="neighborhood"
                                     value={neighborhoodId}
@@ -172,6 +175,7 @@ export default function CreateListing() {
                         <div className="form-row">
                             <div className="form-field">
                                 <label htmlFor="price">Price</label>
+
                                 <input
                                     id="price"
                                     type="number"
@@ -184,6 +188,7 @@ export default function CreateListing() {
 
                             <div className="form-field">
                                 <label htmlFor="floor">Floor</label>
+
                                 <input
                                     id="floor"
                                     type="number"
@@ -196,6 +201,7 @@ export default function CreateListing() {
 
                             <div className="form-field">
                                 <label htmlFor="rooms">Rooms</label>
+
                                 <input
                                     id="rooms"
                                     type="number"
@@ -242,13 +248,28 @@ export default function CreateListing() {
 
                         <div className="form-field">
                             <label htmlFor="picture">Apartment Pictures</label>
-                            <input
-                                id="picture"
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={handlePictureChange}
-                            />
+
+                            <div className="picture-upload">
+                                <input
+                                    id="picture"
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handlePictureChange}
+                                />
+
+                                <label htmlFor="picture" className="picture-upload-button">
+                                    Choose pictures
+                                </label>
+
+                                <span className="picture-upload-count">
+                                    {pictures.length === 0
+                                        ? "No pictures selected"
+                                        : pictures.length === 1
+                                          ? "1 picture selected"
+                                          : `${pictures.length} pictures selected`}
+                                </span>
+                            </div>
                         </div>
                     </section>
 

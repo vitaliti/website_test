@@ -3,6 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import "./CreateListing.css";
 
+type ApartmentImage = {
+    id: string;
+    apartment_id: string;
+    image_path: string;
+    display_order: number;
+};
+
 export default function EditApartment() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -19,6 +26,9 @@ export default function EditApartment() {
     const [storage, setStorage] = useState(false);
     const [ac, setAc] = useState(false);
     const [garage, setGarage] = useState(false);
+
+    const [images, setImages] = useState<ApartmentImage[]>([]);
+    const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -88,11 +98,65 @@ export default function EditApartment() {
             setAc(data.ac);
             setGarage(data.garage);
 
+            const { data: imagesData, error: imagesError } = await supabase
+                .from("ApartmentImages")
+                .select("id, apartment_id, image_path, display_order")
+                .eq("apartment_id", id)
+                .order("display_order", { ascending: true });
+
+            if (imagesError) {
+                console.error("Error loading apartment images:", imagesError);
+                setError("Failed to load apartment images.");
+                setLoading(false);
+                return;
+            }
+
+            setImages(imagesData ?? []);
+
             setLoading(false);
         }
 
         loadApartment();
     }, [id]);
+
+    function handleDragStart(imageId: string) {
+        setDraggedImageId(imageId);
+    }
+
+    function handleDragEnd() {
+        setDraggedImageId(null);
+    }
+
+    function handleDrop(targetImageId: string) {
+        if (!draggedImageId || draggedImageId === targetImageId) {
+            setDraggedImageId(null);
+            return;
+        }
+
+        setImages((currentImages) => {
+            const draggedIndex = currentImages.findIndex(
+                (image) => image.id === draggedImageId
+            );
+
+            const targetIndex = currentImages.findIndex(
+                (image) => image.id === targetImageId
+            );
+
+            if (draggedIndex === -1 || targetIndex === -1) {
+                return currentImages;
+            }
+
+            const newImages = [...currentImages];
+
+            const [draggedImage] = newImages.splice(draggedIndex, 1);
+
+            newImages.splice(targetIndex, 0, draggedImage);
+
+            return newImages;
+        });
+
+        setDraggedImageId(null);
+    }
 
     async function handleSubmit(event: React.SubmitEvent) {
         event.preventDefault();
@@ -124,6 +188,28 @@ export default function EditApartment() {
             setError(error.message);
             setSaving(false);
             return;
+        }
+
+        for (let index = 0; index < images.length; index++) {
+            const image = images[index];
+
+            const { error: imageOrderError } = await supabase
+                .from("ApartmentImages")
+                .update({
+                    display_order: index,
+                })
+                .eq("id", image.id)
+                .eq("apartment_id", id);
+
+            if (imageOrderError) {
+                console.error(
+                    "Error updating apartment image order:",
+                    imageOrderError
+                );
+                setError(imageOrderError.message);
+                setSaving(false);
+                return;
+            }
         }
 
         navigate(`/apartments/${id}`);
@@ -198,7 +284,9 @@ export default function EditApartment() {
 
                         <div className="form-row">
                             <div className="form-field">
-                                <label htmlFor="price">Price (€ / month)</label>
+                                <label htmlFor="price">
+                                    Price (€ / month)
+                                </label>
                                 <input
                                     id="price"
                                     type="number"
@@ -275,6 +363,62 @@ export default function EditApartment() {
                                 <span>Garage</span>
                             </label>
                         </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h2>Apartment Pictures</h2>
+
+                        <p className="listing-description">
+                            Drag pictures to change their order. The first
+                            picture will be the main picture.
+                        </p>
+
+                        {images.length === 0 ? (
+                            <p>No pictures uploaded.</p>
+                        ) : (
+                            <div className="apartment-edit-images">
+                                {images.map((image, index) => {
+                                    const imageUrl = supabase.storage
+                                        .from("apartment-images")
+                                        .getPublicUrl(image.image_path)
+                                        .data.publicUrl;
+
+                                    return (
+                                        <div
+                                            className={
+                                                draggedImageId === image.id
+                                                    ? "apartment-edit-image dragging"
+                                                    : "apartment-edit-image"
+                                            }
+                                            key={image.id}
+                                            draggable
+                                            onDragStart={() =>
+                                                handleDragStart(image.id)
+                                            }
+                                            onDragEnd={handleDragEnd}
+                                            onDragOver={(event) =>
+                                                event.preventDefault()
+                                            }
+                                            onDrop={() =>
+                                                handleDrop(image.id)
+                                            }
+                                        >
+                                            <img
+                                                src={imageUrl}
+                                                alt={`Apartment picture ${
+                                                    index + 1
+                                                }`}
+                                            />
+
+                                            <div className="apartment-edit-image-order">
+                                                Picture {index + 1}
+                                                {index === 0 && " (Main)"}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {error && (

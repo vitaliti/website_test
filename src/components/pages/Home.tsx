@@ -37,96 +37,100 @@ export default function Home() {
         loadNeighborhoods();
     }, []);
 
-  async function handleSearch() {
-      let query = supabase
-          .from("Apartments")
-          .select(`
-              id,
-              city,
-              neighborhood_id,
-              price,
-              floor,
-              rooms,
-              storage,
-              ac,
-              garage,
-              Neighborhoods (
-                  name
-              )
-          `);
+    async function handleSearch() {
+        let query = supabase
+            .from("Apartments")
+            .select(`
+                id,
+                city,
+                neighborhood_id,
+                price,
+                floor,
+                rooms,
+                storage,
+                ac,
+                garage,
+                Neighborhoods (
+                    name
+                )
+            `);
 
-      if (city.trim() !== "") {
-          query = query.ilike("city", `%${city.trim()}%`);
-      }
+        if (city.trim() !== "") {
+            query = query.ilike("city", `%${city.trim()}%`);
+        }
 
-      if (neighborhoodId !== "") {
-          query = query.eq("neighborhood_id", neighborhoodId);
-      }
+        if (neighborhoodId !== "") {
+            query = query.eq("neighborhood_id", neighborhoodId);
+        }
 
-      if (price !== "") {
-          query = query.lte("price", Number(price));
-      }
+        if (price !== "") {
+            query = query.lte("price", Number(price));
+        }
 
-      if (floor !== "") {
-          query = query.eq("floor", Number(floor));
-      }
+        if (floor !== "") {
+            query = query.eq("floor", Number(floor));
+        }
 
-      if (rooms !== "") {
-          query = query.eq("rooms", Number(rooms));
-      }
+        if (rooms !== "") {
+            query = query.eq("rooms", Number(rooms));
+        }
 
-      if (ac) {
-          query = query.eq("ac", true);
-      }
+        if (ac) {
+            query = query.eq("ac", true);
+        }
 
-      if (storage) {
-          query = query.eq("storage", true);
-      }
+        if (storage) {
+            query = query.eq("storage", true);
+        }
 
-      if (garage) {
-          query = query.eq("garage", true);
-      }
+        if (garage) {
+            query = query.eq("garage", true);
+        }
 
-      const { data, error } = await query;
+        const { data, error } = await query;
 
-      if (error) {
-          console.error("Error searching apartments:", error);
-          return;
-      }
+        if (error) {
+            console.error("Error searching apartments:", error);
+            return;
+        }
 
-      const apartmentsWithImages = await Promise.all(
-          (data ?? []).map(async (apartment) => {
-              const { data: imageData, error: imageError } = await supabase
-                  .from("ApartmentImages")
-                  .select("image_path")
-                  .eq("apartment_id", apartment.id)
-                  .order("id")
-                  .limit(1)
-                  .maybeSingle();
+        const apartmentsWithImages = await Promise.all(
+            (data ?? []).map(async (apartment) => {
+                const { data: imageData, error: imageError } =
+                    await supabase
+                        .from("ApartmentImages")
+                        .select("image_path")
+                        .eq("apartment_id", apartment.id)
+                        .order("display_order", { ascending: true })
+                        .limit(1)
+                        .maybeSingle();
 
-              if (imageError) {
-                  console.error("Error loading apartment image:", imageError);
-              }
+                if (imageError) {
+                    console.error(
+                        "Error loading apartment image:",
+                        imageError
+                    );
+                }
 
-              let imageUrl = null;
+                let imageUrl = null;
 
-              if (imageData) {
-                  const { data: publicUrlData } = supabase.storage
-                      .from("apartment-images")
-                      .getPublicUrl(imageData.image_path);
+                if (imageData) {
+                    const { data: publicUrlData } = supabase.storage
+                        .from("apartment-images")
+                        .getPublicUrl(imageData.image_path);
 
-                  imageUrl = publicUrlData.publicUrl;
-              }
+                    imageUrl = publicUrlData.publicUrl;
+                }
 
-              return {
-                  ...apartment,
-                  imageUrl,
-              };
-          })
-      );
+                return {
+                    ...apartment,
+                    imageUrl,
+                };
+            })
+        );
 
-      setApartments(apartmentsWithImages);
-  }
+        setApartments(apartmentsWithImages);
+    }
 
     return (
         <div className="home">
@@ -153,8 +157,12 @@ export default function Home() {
                         onChange={(e) => setNeighborhoodId(e.target.value)}
                     >
                         <option value="">Any</option>
+
                         {neighborhoods.map((neighborhood) => (
-                            <option key={neighborhood.id} value={neighborhood.id}>
+                            <option
+                                key={neighborhood.id}
+                                value={neighborhood.id}
+                            >
                                 {neighborhood.name}
                             </option>
                         ))}
@@ -237,36 +245,49 @@ export default function Home() {
                     <h2>Available apartments</h2>
 
                     <div className="apartment-results">
-                      {apartments.map((apartment) => (
-                          <Link
-                              to={`/apartments/${apartment.id}`}
-                              className="apartment-card"
-                              key={apartment.id}
-                          >
-                              {apartment.imageUrl ? (
-                                  <img
-                                      className="apartment-image"
-                                      src={apartment.imageUrl}
-                                      alt="Apartment"
-                                  />
-                              ) : (
-                                  <div className="apartment-image apartment-image-placeholder">
-                                      No image
-                                  </div>
-                              )}
+                        {apartments.map((apartment) => (
+                            <Link
+                                to={`/apartments/${apartment.id}`}
+                                className="apartment-card"
+                                key={apartment.id}
+                            >
+                                {apartment.imageUrl ? (
+                                    <img
+                                        className="apartment-image"
+                                        src={apartment.imageUrl}
+                                        alt="Apartment"
+                                    />
+                                ) : (
+                                    <div className="apartment-image apartment-image-placeholder">
+                                        No image
+                                    </div>
+                                )}
 
-                              <div className="apartment-info">
-                                  <h3>{apartment.price} €</h3>
-                                  <p className="apartment-location">{apartment.Neighborhoods?.name}, {apartment.city}</p>
-                                  <p className="apartment-details">{apartment.rooms} rooms · Floor {apartment.floor}</p>
-                                  <div className="apartment-features">
-                                      {apartment.ac && <span>AC</span>}
-                                      {apartment.storage && <span>Storage</span>}
-                                      {apartment.garage && <span>Garage</span>}
-                                  </div>
-                              </div>
-                          </Link>
-                      ))}
+                                <div className="apartment-info">
+                                    <h3>{apartment.price} €</h3>
+
+                                    <p className="apartment-location">
+                                        {apartment.Neighborhoods?.name},{" "}
+                                        {apartment.city}
+                                    </p>
+
+                                    <p className="apartment-details">
+                                        {apartment.rooms} rooms · Floor{" "}
+                                        {apartment.floor}
+                                    </p>
+
+                                    <div className="apartment-features">
+                                        {apartment.ac && <span>AC</span>}
+                                        {apartment.storage && (
+                                            <span>Storage</span>
+                                        )}
+                                        {apartment.garage && (
+                                            <span>Garage</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </Link>
+                        ))}
                     </div>
                 </div>
             )}

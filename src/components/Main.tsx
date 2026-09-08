@@ -6,6 +6,7 @@ import CreateListing from "./pages/CreateListing";
 import MyApartments from "./pages/MyApartments";
 import ApartmentDetails from "./pages/ApartmentDetails";
 import EditApartment from "./pages/EditApartment";
+import Chat from "./pages/Chat";
 
 export default function Main() {
   return (
@@ -19,6 +20,7 @@ export default function Main() {
         <Route path="/my-apartments" element={<MyApartments />} />
         <Route path="/apartments/:id" element={<ApartmentDetails />} />
         <Route path="/apartments/:id/edit" element={<EditApartment />} />
+        <Route path="/chat" element={<Chat />} />
       </Routes>
     </main>
   );

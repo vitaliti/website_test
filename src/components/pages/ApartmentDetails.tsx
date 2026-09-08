@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import profileIcon from "../../assets/profile.svg";
+import chatIcon from "../../assets/chat.svg";
 import "./ApartmentDetails.css";
 
 type CreatorProfile = {
@@ -125,6 +126,55 @@ export default function ApartmentDetails() {
         loadApartment();
     }, [id]);
 
+    async function handleStartChat() {
+        if (!currentUserId || !apartment) {
+            return;
+        }
+
+        const otherUserId = apartment.creator_id;
+
+        if (currentUserId === otherUserId) {
+            return;
+        }
+
+        const user1Id =
+            currentUserId < otherUserId
+                ? currentUserId
+                : otherUserId;
+
+        const user2Id =
+            currentUserId < otherUserId
+                ? otherUserId
+                : currentUserId;
+
+        const {
+            data: existingConversation,
+            error: conversationError,
+        } = await supabase
+            .from("Conversations")
+            .select("id")
+            .eq("user1_id", user1Id)
+            .eq("user2_id", user2Id)
+            .maybeSingle();
+
+        if (conversationError) {
+            console.error(
+                "Error checking conversation:",
+                conversationError
+            );
+            return;
+        }
+
+        if (existingConversation) {
+            navigate(
+                `/chat?conversation=${existingConversation.id}`
+            );
+            return;
+        }
+
+        navigate(`/chat?user=${otherUserId}`);
+    }
+
     if (loading) {
         return (
             <main className="apartment-details-page">
@@ -157,17 +207,13 @@ export default function ApartmentDetails() {
         : null;
 
     async function handleDelete() {
-        if (!id) {
-            return;
-        }
+        if (!id) return;
 
         const confirmed = window.confirm(
             "Are you sure you want to delete this apartment?"
         );
 
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         const {
             data: { user },
@@ -199,9 +245,9 @@ export default function ApartmentDetails() {
         }
 
         const { data: images, error: imagesError } = await supabase
-            .from("ApartmentImages")
-            .select("image_path")
-            .eq("apartment_id", id);
+                .from("ApartmentImages")
+                .select("image_path")
+                .eq("apartment_id", id);
 
         if (imagesError) {
             console.error("Error loading apartment images:", imagesError);
@@ -244,12 +290,12 @@ export default function ApartmentDetails() {
         );
 
         if (emptyFolderPlaceholder) {
-            const { error: placeholderDeleteError } =
-                await supabase.storage
-                    .from("apartment-images")
-                    .remove([
-                        `${apartmentFolder}/.emptyFolderPlaceholder`,
-                    ]);
+            const { error: placeholderDeleteError,
+            } = await supabase.storage
+                .from("apartment-images")
+                .remove([
+                    `${apartmentFolder}/.emptyFolderPlaceholder`,
+                ]);
 
             if (placeholderDeleteError) {
                 console.error(
@@ -344,28 +390,42 @@ export default function ApartmentDetails() {
 
                     <div className="apartment-details-content">
                         {creatorProfile && (
-                            <Link
-                                to={`/profile/${creatorProfile.id}`}
-                                className="apartment-creator"
-                            >
-                                {creatorProfile.profile_picture_path ? (
-                                    <img
-                                        src={
-                                            supabase.storage
-                                                .from("profile-pictures")
-                                                .getPublicUrl(
-                                                    creatorProfile.profile_picture_path
-                                                ).data.publicUrl
-                                        }
-                                        alt="Listing creator"
-                                    />
-                                ) : (
-                                    <img
-                                        src={profileIcon}
-                                        alt="Listing creator"
-                                    />
+                            <div className="apartment-creator-actions">
+                                <Link
+                                    to={`/profile/${creatorProfile.id}`}
+                                    className="apartment-creator"
+                                >
+                                    {creatorProfile.profile_picture_path ? (
+                                        <img
+                                            src={
+                                                supabase.storage
+                                                    .from("profile-pictures")
+                                                    .getPublicUrl(
+                                                        creatorProfile.profile_picture_path
+                                                    ).data.publicUrl
+                                            }
+                                            alt="Listing creator"
+                                        />
+                                    ) : (
+                                        <img
+                                            src={profileIcon}
+                                            alt="Listing creator"
+                                        />
+                                    )}
+                                </Link>
+
+                                {currentUserId && currentUserId !== creatorProfile.id && (
+                                    <button
+                                        className="apartment-chat-button"
+                                        onClick={handleStartChat}
+                                    >
+                                        <img
+                                            src={chatIcon}
+                                            alt="Start chat"
+                                        />
+                                    </button>
                                 )}
-                            </Link>
+                            </div>
                         )}
 
                         {currentUserId === apartment.creator_id && (

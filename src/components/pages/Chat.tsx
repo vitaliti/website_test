@@ -7,6 +7,7 @@ type ChatItem = {
     id: string;
     name: string;
     lastMessage: string;
+    unread: boolean;
 };
 
 type Message = {
@@ -19,6 +20,9 @@ type Conversation = {
     id: string;
     user1_id: string;
     user2_id: string;
+    updated_at: string;
+    user1_last_read_at: string | null;
+    user2_last_read_at: string | null;
 };
 
 type Profile = {
@@ -99,7 +103,7 @@ export default function Chat() {
                     const { data: conversation, error: conversationError } =
                         await supabase
                             .from("Conversations")
-                            .select("id, user1_id, user2_id")
+                            .select("id, user1_id, user2_id, user1_last_read_at, user2_last_read_at")
                             .eq("id", newMessage.conversation_id)
                             .maybeSingle();
 
@@ -168,14 +172,13 @@ export default function Chat() {
                         if (existingChat) {
                             chatExists = true;
 
-                            /*
-                             * Update the last message and move this
-                             * conversation to the top.
-                             */
                             return [
                                 {
                                     ...existingChat,
                                     lastMessage: newMessage.content,
+                                    unread:
+                                        newMessage.sender_id !== currentUserId &&
+                                        newMessage.conversation_id !== selectedChatId,
                                 },
                                 ...previousChats.filter(
                                     (chat) =>
@@ -243,6 +246,7 @@ export default function Chat() {
                                     id: newMessage.conversation_id,
                                     name: (profile as Profile).username,
                                     lastMessage: newMessage.content,
+                                    unread: newMessage.sender_id !== currentUserId,
                                 },
                                 ...previousChats,
                             ];
@@ -290,7 +294,7 @@ export default function Chat() {
         const { data: conversations, error: conversationsError } =
             await supabase
                 .from("Conversations")
-                .select("id, user1_id, user2_id")
+                .select("id, user1_id, user2_id, updated_at, user1_last_read_at, user2_last_read_at")
                 .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
                 .order("updated_at", { ascending: false });
 
@@ -328,7 +332,7 @@ export default function Chat() {
             const { data: lastMessage, error: messageError } =
                 await supabase
                     .from("Messages")
-                    .select("content")
+                    .select("content, sender_id, created_at")
                     .eq("conversation_id", conversation.id)
                     .order("created_at", { ascending: false })
                     .limit(1)
@@ -341,10 +345,25 @@ export default function Chat() {
                 );
             }
 
+            const lastReadAt =
+                conversation.user1_id === user.id
+                    ? conversation.user1_last_read_at
+                    : conversation.user2_last_read_at;
+
+            const unread =
+                lastMessage &&
+                lastMessage.sender_id !== user.id &&
+                (
+                    lastReadAt === null ||
+                    new Date(lastMessage.created_at) >
+                        new Date(lastReadAt)
+                );
+
             chatItems.push({
                 id: conversation.id,
                 name: (profile as Profile).username,
                 lastMessage: lastMessage?.content ?? "No messages yet",
+                unread: !!unread,
             });
         }
 
@@ -449,6 +468,37 @@ export default function Chat() {
         setMessages(loadedMessages);
     };
 
+    const markConversationAsRead = async (conversation: Conversation) => {
+        if (!currentUserId) {
+            return;
+        }
+
+        const column =
+            conversation.user1_id === currentUserId
+                ? "user1_last_read_at"
+                : "user2_last_read_at";
+
+        const now = new Date().toISOString();
+
+        const { error } = await supabase
+            .from("Conversations")
+            .update({ [column]: now })
+            .eq("id", conversation.id);
+
+        if (error) {
+            console.error("Could not mark conversation as read:", error);
+            return;
+        }
+
+        setChats((previousChats) =>
+            previousChats.map((chat) =>
+                chat.id === conversation.id
+                    ? { ...chat, unread: false }
+                    : chat
+            )
+        );
+    };
+
     const handleSendMessage = async () => {
         if (!message.trim() || !currentUserId) {
             return;
@@ -535,6 +585,17 @@ export default function Chat() {
             return;
         }
 
+        const { error: updateError } = await supabase
+            .from("Conversations")
+            .update({
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", conversationId);
+
+        if (updateError) {
+            console.error("Could not update conversation:", updateError);
+        }
+
         /*
          * Add our message immediately.
          *
@@ -566,6 +627,7 @@ export default function Chat() {
                     id: conversationId!,
                     name: newChatUsername ?? "Unknown user",
                     lastMessage: text,
+                    unread: false,
                 },
                 ...previousChats,
             ]);
@@ -630,15 +692,34 @@ export default function Chat() {
                             key={chat.id}
                             className={`chat-list-item ${
                                 selectedChatId === chat.id ? "active" : ""
+                            } ${
+                                chat.unread ? "unread" : ""
                             }`}
-                            onClick={() => {
-                                setSelectedChatId(chat.id);
-                                setNewChatUserId(null);
-                                setNewChatUsername(null);
-                                setShowMobileChat(true);
-                            }}
+                            onClick={async () => {
+                            setSelectedChatId(chat.id);
+                            setNewChatUserId(null);
+                            setNewChatUsername(null);
+                            setShowMobileChat(true);
+
+                            const conversation = await supabase
+                                .from("Conversations")
+                                .select(
+                                    "id, user1_id, user2_id, user1_last_read_at, user2_last_read_at"
+                                )
+                                .eq("id", chat.id)
+                                .single();
+
+                            if (conversation.data) {
+                                await markConversationAsRead(
+                                    conversation.data as Conversation
+                                );
+                            }
+                        }}
                         >
-                            <strong>{chat.name}</strong>
+                            <div className="chat-list-name">
+                                <strong>{chat.name}</strong>
+                                {chat.unread && <span className="unread-dot"></span>}
+                            </div>
                             <span>{chat.lastMessage}</span>
                         </button>
                     ))

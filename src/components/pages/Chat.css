@@ -106,6 +106,36 @@
     text-align: center;
 }
 
+.chat-list-item.unread {
+    background-color: #e8f1ff;
+}
+
+.chat-list-item.unread:hover {
+    background-color: #dceaff;
+}
+
+.chat-list-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.chat-list-item.unread strong {
+    font-weight: 700;
+}
+
+.unread-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-color: #2878d4;
+}
+
+
+
 .messages {
     display: flex;
     flex: 1 1 0;

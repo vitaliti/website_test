@@ -258,10 +258,16 @@ export default function Chat() {
     }, [currentUserId, selectedChatId]);
 
     useEffect(() => {
-        if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop =
-                messagesContainerRef.current.scrollHeight;
-        }
+        const scrollToBottom = () => {
+            if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTop =
+                    messagesContainerRef.current.scrollHeight;
+            }
+        };
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToBottom);
+        });
     }, [messages]);
 
     const loadChats = async () => {

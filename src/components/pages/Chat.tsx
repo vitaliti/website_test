@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import "./Chat.css";
 import { supabase } from "../../lib/supabase";
@@ -44,6 +44,7 @@ export default function Chat() {
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [showMobileChat, setShowMobileChat] = useState(false);
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
     const selectedChat = chats.find(
         (chat) => chat.id === selectedChatId
@@ -60,6 +61,208 @@ export default function Chat() {
             setMessages([]);
         }
     }, [selectedChatId]);
+
+    /*
+     * REALTIME:
+     *
+     * Listen for new messages.
+     *
+     * This does two things:
+     * 1. Adds the message immediately if its conversation is open.
+     * 2. Updates/adds the conversation in the chat list.
+     */
+    useEffect(() => {
+        if (!currentUserId) {
+            return;
+        }
+
+        const channel = supabase
+            .channel("user-messages")
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "Messages",
+                },
+                async (payload) => {
+                    const newMessage = payload.new as {
+                        id: string;
+                        conversation_id: string;
+                        sender_id: string;
+                        content: string;
+                    };
+
+                    /*
+                     * Get the conversation that this message belongs to.
+                     */
+                    const { data: conversation, error: conversationError } =
+                        await supabase
+                            .from("Conversations")
+                            .select("id, user1_id, user2_id")
+                            .eq("id", newMessage.conversation_id)
+                            .maybeSingle();
+
+                    if (conversationError || !conversation) {
+                        return;
+                    }
+
+                    /*
+                     * Ignore conversations where the current user
+                     * is not a participant.
+                     */
+                    const isParticipant =
+                        conversation.user1_id === currentUserId ||
+                        conversation.user2_id === currentUserId;
+
+                    if (!isParticipant) {
+                        return;
+                    }
+
+                    /*
+                     * If this is the conversation currently being viewed,
+                     * immediately add the new message.
+                     */
+                    if (selectedChatId === newMessage.conversation_id) {
+                        setMessages((previousMessages) => {
+                            /*
+                             * Prevent our own message from being added twice.
+                             *
+                             * handleSendMessage() adds our message immediately,
+                             * and Realtime will also send the INSERT event.
+                             */
+                            if (
+                                previousMessages.some(
+                                    (msg) => msg.id === newMessage.id
+                                )
+                            ) {
+                                return previousMessages;
+                            }
+
+                            return [
+                                ...previousMessages,
+                                {
+                                    id: newMessage.id,
+                                    sender:
+                                        newMessage.sender_id === currentUserId
+                                            ? "me"
+                                            : "them",
+                                    text: newMessage.content,
+                                },
+                            ];
+                        });
+                    }
+
+                    /*
+                     * Check whether this conversation is already in
+                     * our chat list.
+                     */
+                    let chatExists = false;
+
+                    setChats((previousChats) => {
+                        const existingChat = previousChats.find(
+                            (chat) =>
+                                chat.id === newMessage.conversation_id
+                        );
+
+                        if (existingChat) {
+                            chatExists = true;
+
+                            /*
+                             * Update the last message and move this
+                             * conversation to the top.
+                             */
+                            return [
+                                {
+                                    ...existingChat,
+                                    lastMessage: newMessage.content,
+                                },
+                                ...previousChats.filter(
+                                    (chat) =>
+                                        chat.id !== newMessage.conversation_id
+                                ),
+                            ];
+                        }
+
+                        return previousChats;
+                    });
+
+                    /*
+                     * If the conversation was not already in the chat list,
+                     * it is a new conversation for this user.
+                     *
+                     * Add it to the list immediately.
+                     */
+                    if (!chatExists) {
+                        const otherUserId =
+                            conversation.user1_id === currentUserId
+                                ? conversation.user2_id
+                                : conversation.user1_id;
+
+                        const { data: profile, error: profileError } =
+                            await supabase
+                                .from("Profiles")
+                                .select("id, username")
+                                .eq("id", otherUserId)
+                                .single();
+
+                        if (profileError || !profile) {
+                            console.error(
+                                "Could not load profile for new conversation:",
+                                profileError
+                            );
+                            return;
+                        }
+
+                        setChats((previousChats) => {
+                            /*
+                             * Check again because the chat may have been
+                             * added while we were loading the profile.
+                             */
+                            const existingChat = previousChats.find(
+                                (chat) =>
+                                    chat.id === newMessage.conversation_id
+                            );
+
+                            if (existingChat) {
+                                return [
+                                    {
+                                        ...existingChat,
+                                        lastMessage: newMessage.content,
+                                    },
+                                    ...previousChats.filter(
+                                        (chat) =>
+                                            chat.id !==
+                                            newMessage.conversation_id
+                                    ),
+                                ];
+                            }
+
+                            return [
+                                {
+                                    id: newMessage.conversation_id,
+                                    name: (profile as Profile).username,
+                                    lastMessage: newMessage.content,
+                                },
+                                ...previousChats,
+                            ];
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentUserId, selectedChatId]);
+
+    useEffect(() => {
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop =
+                messagesContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
 
     const loadChats = async () => {
         setLoading(true);
@@ -204,11 +407,17 @@ export default function Chat() {
             setSelectedChatId(chatItems[0].id);
             setNewChatUserId(null);
             setNewChatUsername(null);
+
+            /*
+             * Make sure /chat shows the chat list on mobile.
+             */
+            setShowMobileChat(false);
         } else {
             setSelectedChatId(null);
             setNewChatUserId(null);
             setNewChatUsername(null);
             setMessages([]);
+            setShowMobileChat(false);
         }
 
         setLoading(false);
@@ -223,17 +432,20 @@ export default function Chat() {
             .from("Messages")
             .select("id, sender_id, content")
             .eq("conversation_id", conversationId)
-            .order("created_at", { ascending: true });
+            .order("created_at", { ascending: false })
+            .limit(20);
 
         if (error) {
             console.error("Could not load messages:", error);
             return;
         }
 
-        const loadedMessages: Message[] = (data ?? []).map((msg) => ({
-            id: msg.id,
-            sender: msg.sender_id === currentUserId ? "me" : "them",
-            text: msg.content,
+        const loadedMessages: Message[] = (data ?? [])
+            .reverse()
+            .map((msg) => ({
+                id: msg.id,
+                sender: msg.sender_id === currentUserId ? "me" : "them",
+                text: msg.content,
         }));
 
         setMessages(loadedMessages);
@@ -325,14 +537,30 @@ export default function Chat() {
             return;
         }
 
-        setMessages((previousMessages) => [
-            ...previousMessages,
-            {
-                id: newMessage.id,
-                sender: "me",
-                text: newMessage.content,
-            },
-        ]);
+        /*
+         * Add our message immediately.
+         *
+         * The Realtime listener will also receive it, but it checks
+         * the ID first so it will not be duplicated.
+         */
+        setMessages((previousMessages) => {
+            if (
+                previousMessages.some(
+                    (msg) => msg.id === newMessage.id
+                )
+            ) {
+                return previousMessages;
+            }
+
+            return [
+                ...previousMessages,
+                {
+                    id: newMessage.id,
+                    sender: "me",
+                    text: newMessage.content,
+                },
+            ];
+        });
 
         if (isNewConversation) {
             setChats((previousChats) => [
@@ -437,7 +665,7 @@ export default function Chat() {
                             <h2>{selectedChat.name}</h2>
                         </header>
 
-                        <div className="messages">
+                        <div className="messages" ref={messagesContainerRef}>
                             {messages.map((msg) => (
                                 <div
                                     key={msg.id}
@@ -485,7 +713,7 @@ export default function Chat() {
                             <h2>{newChatUsername}</h2>
                         </header>
 
-                        <div className="messages">
+                        <div className="messages" ref={messagesContainerRef}>
                             <p>Start a conversation.</p>
                         </div>
 

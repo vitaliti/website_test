@@ -144,7 +144,7 @@
 @media (max-width: 768px) {
     .chat-page {
         width: 100%;
-        height: calc(100vh - 80px);
+        height: calc(100dvh - 80px);
         margin: 0;
         border: none;
     }

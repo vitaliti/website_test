@@ -258,11 +258,18 @@ export default function Chat() {
     }, [currentUserId, selectedChatId]);
 
     useEffect(() => {
-        if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop =
-                messagesContainerRef.current.scrollHeight;
+        if (!showMobileChat || messages.length === 0) {
+            return;
         }
-    }, [messages]);
+
+        const container = messagesContainerRef.current;
+
+        if (!container) {
+            return;
+        }
+
+        container.scrollTop = container.scrollHeight;
+    }, [messages, showMobileChat]);
 
     const loadChats = async () => {
         setLoading(true);

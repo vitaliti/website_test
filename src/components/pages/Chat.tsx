@@ -258,7 +258,7 @@ export default function Chat() {
     }, [currentUserId, selectedChatId]);
 
     useEffect(() => {
-        if (!showMobileChat || messages.length === 0) {
+        if (messages.length === 0) {
             return;
         }
 
@@ -269,7 +269,7 @@ export default function Chat() {
         }
 
         container.scrollTop = container.scrollHeight;
-    }, [messages, showMobileChat]);
+    }, [messages]);
 
     const loadChats = async () => {
         setLoading(true);
@@ -410,16 +410,7 @@ export default function Chat() {
          * Normal /chat with no parameters.
          * Open the first existing conversation.
          */
-        else if (chatItems.length > 0) {
-            setSelectedChatId(chatItems[0].id);
-            setNewChatUserId(null);
-            setNewChatUsername(null);
-
-            /*
-             * Make sure /chat shows the chat list on mobile.
-             */
-            setShowMobileChat(false);
-        } else {
+        else {
             setSelectedChatId(null);
             setNewChatUserId(null);
             setNewChatUsername(null);
@@ -745,7 +736,9 @@ export default function Chat() {
                         </div>
                     </>
                 ) : (
-                    <p>Select a chat to start messaging.</p>
+                    <div className="chat-empty">
+                        <p>Select a chat to start messaging.</p>
+                    </div>
                 )}
             </section>
         </main>

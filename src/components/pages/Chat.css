@@ -91,6 +91,21 @@
     cursor: pointer;
 }
 
+.chat-empty {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.chat-empty p {
+    margin: 0;
+    color: #888;
+    font-size: 1rem;
+    text-align: center;
+}
+
 .messages {
     display: flex;
     flex: 1 1 0;

@@ -1,34 +1,34 @@
 /* Reset */
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 html,
 body {
-  width: 100%;
-  min-height: 100%;
+    width: 100%;
+    min-height: 100%;
 }
 
 body {
-  font-family: Arial, sans-serif;
+    font-family: Arial, sans-serif;
 }
 
 button,
 input,
 textarea,
 select {
-  font: inherit;
+    font: inherit;
 }
 
 /* App container */
 #root {
-  width: 1126px;
-  max-width: 100%;
-  min-height: 100svh;
-  margin: 0 auto;
-  border-inline: 1px solid #e5e4e7;
-  display: flex;
-  flex-direction: column;
+    width: 1126px;
+    max-width: 100%;
+    min-height: 100svh;
+    margin: 0 auto;
+    border-inline: 1px solid #e5e4e7;
+    display: flex;
+    flex-direction: column;
 }

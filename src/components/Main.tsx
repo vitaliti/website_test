@@ -8,6 +8,8 @@ import ApartmentDetails from "./pages/ApartmentDetails";
 import EditApartment from "./pages/EditApartment";
 import Chat from "./pages/Chat";
 
+import "./Main.css";
+
 export default function Main() {
   return (
     <main className="main">

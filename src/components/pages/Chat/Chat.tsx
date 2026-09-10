@@ -4,6 +4,7 @@ import "./Chat.css";
 import type { ChatItem, Message, Conversation, Profile } from "./ChatTypes";
 import { supabase } from "../../../lib/supabase";
 import ChatList from "./ChatList";
+import ChatWindow from "./ChatWindow";
 
 export default function Chat() {
     const [searchParams] = useSearchParams();
@@ -663,102 +664,19 @@ export default function Chat() {
                 markConversationAsRead={markConversationAsRead}
             />
 
-            <section
-                className={`chat-window ${
-                    showMobileChat ? "mobile-visible" : ""
-                }`}
-            >
-                {selectedChat ? (
-                    <>
-                        <header className="chat-header">
-                            <button
-                                className="chat-back-button"
-                                onClick={() => setShowMobileChat(false)}
-                            >
-                                ←
-                            </button>
+            <ChatWindow
+                selectedChat={selectedChat}
+                newChatUserId={newChatUserId}
+                newChatUsername={newChatUsername}
+                messages={messages}
+                message={message}
+                setMessage={setMessage}
+                messagesContainerRef={messagesContainerRef}
+                showMobileChat={showMobileChat}
+                setShowMobileChat={setShowMobileChat}
+                handleSendMessage={handleSendMessage}
+            />
 
-                            <h2>{selectedChat.name}</h2>
-                        </header>
-
-                        <div className="messages" ref={messagesContainerRef}>
-                            {messages.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`message ${
-                                        msg.sender === "me"
-                                            ? "message-me"
-                                            : "message-them"
-                                    }`}
-                                >
-                                    {msg.text}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="message-input">
-                            <input
-                                type="text"
-                                placeholder="Write a message..."
-                                value={message}
-                                onChange={(event) =>
-                                    setMessage(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                        handleSendMessage();
-                                    }
-                                }}
-                            />
-
-                            <button onClick={handleSendMessage}>
-                                Send
-                            </button>
-                        </div>
-                    </>
-                ) : newChatUserId ? (
-                    <>
-                        <header className="chat-header">
-                            <button
-                                className="chat-back-button"
-                                onClick={() => setShowMobileChat(false)}
-                            >
-                                ←
-                            </button>
-
-                            <h2>{newChatUsername}</h2>
-                        </header>
-
-                        <div className="messages" ref={messagesContainerRef}>
-                            <p>Start a conversation.</p>
-                        </div>
-
-                        <div className="message-input">
-                            <input
-                                type="text"
-                                placeholder="Write a message..."
-                                value={message}
-                                onChange={(event) =>
-                                    setMessage(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                        handleSendMessage();
-                                    }
-                                }}
-                            />
-
-                            <button onClick={handleSendMessage}>
-                                Send
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <div className="chat-empty">
-                        <p>Select a chat to start messaging.</p>
-                    </div>
-                )}
-            </section>
         </main>
     );
 }

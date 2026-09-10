@@ -1,34 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import "./Chat.css";
-import { supabase } from "../../lib/supabase";
-
-type ChatItem = {
-    id: string;
-    name: string;
-    lastMessage: string;
-    unread: boolean;
-};
-
-type Message = {
-    id: string;
-    sender: "me" | "them";
-    text: string;
-};
-
-type Conversation = {
-    id: string;
-    user1_id: string;
-    user2_id: string;
-    updated_at: string;
-    user1_last_read_at: string | null;
-    user2_last_read_at: string | null;
-};
-
-type Profile = {
-    id: string;
-    username: string;
-};
+import type { ChatItem, Message, Conversation, Profile } from "./ChatTypes";
+import { supabase } from "../../../lib/supabase";
+import ChatList from "./ChatList";
 
 export default function Chat() {
     const [searchParams] = useSearchParams();
@@ -677,54 +652,16 @@ export default function Chat() {
 
     return (
         <main className="chat-page">
-            <section
-                className={`chat-list ${
-                    showMobileChat ? "mobile-hidden" : ""
-                }`}
-            >
-                <h1>Chats</h1>
-
-                {chats.length === 0 ? (
-                    <p>No chats started yet.</p>
-                ) : (
-                    chats.map((chat) => (
-                        <button
-                            key={chat.id}
-                            className={`chat-list-item ${
-                                selectedChatId === chat.id ? "active" : ""
-                            } ${
-                                chat.unread ? "unread" : ""
-                            }`}
-                            onClick={async () => {
-                            setSelectedChatId(chat.id);
-                            setNewChatUserId(null);
-                            setNewChatUsername(null);
-                            setShowMobileChat(true);
-
-                            const conversation = await supabase
-                                .from("Conversations")
-                                .select(
-                                    "id, user1_id, user2_id, user1_last_read_at, user2_last_read_at"
-                                )
-                                .eq("id", chat.id)
-                                .single();
-
-                            if (conversation.data) {
-                                await markConversationAsRead(
-                                    conversation.data as Conversation
-                                );
-                            }
-                        }}
-                        >
-                            <div className="chat-list-name">
-                                <strong>{chat.name}</strong>
-                                {chat.unread && <span className="unread-dot"></span>}
-                            </div>
-                            <span>{chat.lastMessage}</span>
-                        </button>
-                    ))
-                )}
-            </section>
+            <ChatList
+                chats={chats}
+                selectedChatId={selectedChatId}
+                setSelectedChatId={setSelectedChatId}
+                setNewChatUserId={setNewChatUserId}
+                setNewChatUsername={setNewChatUsername}
+                setShowMobileChat={setShowMobileChat}
+                showMobileChat={showMobileChat}
+                markConversationAsRead={markConversationAsRead}
+            />
 
             <section
                 className={`chat-window ${

@@ -6,7 +6,7 @@ import CreateListing from "./pages/CreateListing";
 import MyApartments from "./pages/MyApartments";
 import ApartmentDetails from "./pages/ApartmentDetails";
 import EditApartment from "./pages/EditApartment";
-import Chat from "./pages/Chat";
+import Chat from "./pages/Chat/Chat";
 
 import "./Main.css";
 

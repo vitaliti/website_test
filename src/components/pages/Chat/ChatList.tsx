@@ -1,5 +1,5 @@
-import { supabase } from "../../../lib/supabase";
 import type { ChatItem, Conversation } from "./ChatTypes";
+import { getConversation } from "../../services/DatabaseService";
 
 type ChatListProps = {
     chats: ChatItem[];
@@ -47,13 +47,7 @@ export default function ChatList({
                             setNewChatUsername(null);
                             setShowMobileChat(true);
 
-                            const conversation = await supabase
-                                .from("Conversations")
-                                .select(
-                                    "id, user1_id, user2_id, user1_last_read_at, user2_last_read_at"
-                                )
-                                .eq("id", chat.id)
-                                .single();
+                            const conversation = await getConversation(chat.id)
 
                             if (conversation.data) {
                                 await markConversationAsRead(

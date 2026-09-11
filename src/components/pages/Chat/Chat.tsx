@@ -5,6 +5,7 @@ import type { ChatItem, Message, Conversation, Profile } from "./ChatTypes";
 import { supabase } from "../../../lib/supabase";
 import ChatList from "./ChatList";
 import ChatWindow from "./ChatWindow";
+import * as dbService from "../../services/DatabaseService";
 
 export default function Chat() {
     const [searchParams] = useSearchParams();
@@ -76,14 +77,9 @@ export default function Chat() {
                     /*
                      * Get the conversation that this message belongs to.
                      */
-                    const { data: conversation, error: conversationError } =
-                        await supabase
-                            .from("Conversations")
-                            .select("id, user1_id, user2_id, user1_last_read_at, user2_last_read_at")
-                            .eq("id", newMessage.conversation_id)
-                            .maybeSingle();
+                    const { data: conversation, error: conversationError } = await dbService.getConversation(newMessage.conversation_id);
 
-                    if (conversationError || !conversation) {
+                    if (conversationError) {
                         return;
                     }
 
@@ -108,7 +104,7 @@ export default function Chat() {
                             /*
                              * Prevent our own message from being added twice.
                              *
-                             * handleSendMessage() adds our message immediately,
+                             * handle.sendMessage() adds our message immediately,
                              * and Realtime will also send the INSERT event.
                              */
                             if (
@@ -178,14 +174,9 @@ export default function Chat() {
                                 ? conversation.user2_id
                                 : conversation.user1_id;
 
-                        const { data: profile, error: profileError } =
-                            await supabase
-                                .from("Profiles")
-                                .select("id, username")
-                                .eq("id", otherUserId)
-                                .single();
+                        const { data: profile, error: profileError } = await dbService.getProfile(otherUserId);
 
-                        if (profileError || !profile) {
+                        if (profileError) {
                             console.error(
                                 "Could not load profile for new conversation:",
                                 profileError
@@ -254,10 +245,7 @@ export default function Chat() {
     const loadChats = async () => {
         setLoading(true);
 
-        const {
-            data: { user },
-            error: userError,
-        } = await supabase.auth.getUser();
+        const {data: { user }, error: userError} = await dbService.getUser();
 
         if (userError || !user) {
             console.error("Could not get logged-in user:", userError);
@@ -267,36 +255,21 @@ export default function Chat() {
 
         setCurrentUserId(user.id);
 
-        const { data: conversations, error: conversationsError } =
-            await supabase
-                .from("Conversations")
-                .select("id, user1_id, user2_id, updated_at, user1_last_read_at, user2_last_read_at")
-                .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-                .order("updated_at", { ascending: false });
-
+        const { data: conversations, error: conversationsError } = await dbService.getUserConversations(user.id);
         if (conversationsError) {
-            console.error(
-                "Could not load conversations:",
-                conversationsError
-            );
+            console.error("Could not load conversations:", conversationsError);
             setLoading(false);
             return;
         }
 
         const chatItems: ChatItem[] = [];
-
         for (const conversation of (conversations ?? []) as Conversation[]) {
             const otherUserId =
                 conversation.user1_id === user.id
                     ? conversation.user2_id
                     : conversation.user1_id;
 
-            const { data: profile, error: profileError } = await supabase
-                .from("Profiles")
-                .select("id, username")
-                .eq("id", otherUserId)
-                .single();
-
+            const { data: profile, error: profileError } = await dbService.getProfile(otherUserId);
             if (profileError) {
                 console.error(
                     "Could not load profile:",
@@ -305,22 +278,12 @@ export default function Chat() {
                 continue;
             }
 
-            const { data: lastMessage, error: messageError } =
-                await supabase
-                    .from("Messages")
-                    .select("content, sender_id, created_at")
-                    .eq("conversation_id", conversation.id)
-                    .order("created_at", { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
+            const { data: messages, error: messageError } = await dbService.getMessages(conversation.id, 1);
             if (messageError) {
-                console.error(
-                    "Could not load last message:",
-                    messageError
-                );
+                console.error("Could not load last message:", messageError);
             }
 
+            const lastMessage = messages?.[0];
             const lastReadAt =
                 conversation.user1_id === user.id
                     ? conversation.user1_last_read_at
@@ -379,12 +342,7 @@ export default function Chat() {
                 setNewChatUsername(null);
                 setShowMobileChat(true);
             } else {
-                const { data: profile, error: profileError } =
-                    await supabase
-                        .from("Profiles")
-                        .select("id, username")
-                        .eq("id", userIdFromUrl)
-                        .single();
+                const { data: profile, error: profileError } = await dbService.getProfile(userIdFromUrl);
 
                 if (profileError) {
                     console.error(
@@ -421,13 +379,7 @@ export default function Chat() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from("Messages")
-            .select("id, sender_id, content")
-            .eq("conversation_id", conversationId)
-            .order("created_at", { ascending: false })
-            .limit(20);
-
+        const { data, error } = await dbService.getMessages(conversationId, 20)
         if (error) {
             console.error("Could not load messages:", error);
             return;
@@ -454,13 +406,7 @@ export default function Chat() {
                 ? "user1_last_read_at"
                 : "user2_last_read_at";
 
-        const now = new Date().toISOString();
-
-        const { error } = await supabase
-            .from("Conversations")
-            .update({ [column]: now })
-            .eq("id", conversation.id);
-
+        const { error } = await dbService.updateConversationReadAt(conversation.id, column);
         if (error) {
             console.error("Could not mark conversation as read:", error);
             return;
@@ -496,16 +442,7 @@ export default function Chat() {
                     ? newChatUserId
                     : currentUserId;
 
-            const {
-                data: existingConversation,
-                error: existingConversationError,
-            } = await supabase
-                .from("Conversations")
-                .select("id")
-                .eq("user1_id", user1Id)
-                .eq("user2_id", user2Id)
-                .maybeSingle();
-
+            const { data: existingConversation, error: existingConversationError } = await dbService.getConversationBetweenUsers(user1Id, user2Id);
             if (existingConversationError) {
                 console.error(
                     "Could not check for existing conversation:",
@@ -517,17 +454,7 @@ export default function Chat() {
             if (existingConversation) {
                 conversationId = existingConversation.id;
             } else {
-                const {
-                    data: newConversation,
-                    error: createError,
-                } = await supabase
-                    .from("Conversations")
-                    .insert({
-                        user1_id: user1Id,
-                        user2_id: user2Id,
-                    })
-                    .select("id")
-                    .single();
+                const { data: newConversation,error: createError } = await dbService.createConversation(user1Id, user2Id);
 
                 if (createError) {
                     console.error(
@@ -546,28 +473,13 @@ export default function Chat() {
             return;
         }
 
-        const { data: newMessage, error } = await supabase
-            .from("Messages")
-            .insert({
-                conversation_id: conversationId,
-                sender_id: currentUserId,
-                content: text,
-            })
-            .select("id, sender_id, content")
-            .single();
-
+        const { data: newMessage, error } = await dbService.sendMessage(conversationId, currentUserId, text);
         if (error) {
             console.error("Could not send message:", error);
             return;
         }
 
-        const { error: updateError } = await supabase
-            .from("Conversations")
-            .update({
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", conversationId);
-
+        const { error: updateError } = await dbService.updateConversationTimestamp(conversationId);
         if (updateError) {
             console.error("Could not update conversation:", updateError);
         }

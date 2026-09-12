@@ -1,7 +1,7 @@
 import "./Home.css";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import * as db from "../services/DatabaseService";
 
 export default function Home() {
     const [city, setCity] = useState("");
@@ -21,11 +21,7 @@ export default function Home() {
 
     useEffect(() => {
         async function loadNeighborhoods() {
-            const { data, error } = await supabase
-                .from("Neighborhoods")
-                .select("id, name")
-                .order("name");
-
+            const { data, error } = await db.getNeighborhoods();
             if (error) {
                 console.error("Error loading neighborhoods:", error);
                 return;
@@ -38,57 +34,7 @@ export default function Home() {
     }, []);
 
     async function handleSearch() {
-        let query = supabase
-            .from("Apartments")
-            .select(`
-                id,
-                city,
-                neighborhood_id,
-                price,
-                floor,
-                rooms,
-                storage,
-                ac,
-                garage,
-                Neighborhoods (
-                    name
-                )
-            `);
-
-        if (city.trim() !== "") {
-            query = query.ilike("city", `%${city.trim()}%`);
-        }
-
-        if (neighborhoodId !== "") {
-            query = query.eq("neighborhood_id", neighborhoodId);
-        }
-
-        if (price !== "") {
-            query = query.lte("price", Number(price));
-        }
-
-        if (floor !== "") {
-            query = query.eq("floor", Number(floor));
-        }
-
-        if (rooms !== "") {
-            query = query.eq("rooms", Number(rooms));
-        }
-
-        if (ac) {
-            query = query.eq("ac", true);
-        }
-
-        if (storage) {
-            query = query.eq("storage", true);
-        }
-
-        if (garage) {
-            query = query.eq("garage", true);
-        }
-
-        const { data, error } = await query;
-
+        const { data, error } = await db.searchApartments(city, neighborhoodId, price, floor, rooms, storage, ac, garage);
         if (error) {
             console.error("Error searching apartments:", error);
             return;
@@ -96,15 +42,7 @@ export default function Home() {
 
         const apartmentsWithImages = await Promise.all(
             (data ?? []).map(async (apartment) => {
-                const { data: imageData, error: imageError } =
-                    await supabase
-                        .from("ApartmentImages")
-                        .select("image_path")
-                        .eq("apartment_id", apartment.id)
-                        .order("display_order", { ascending: true })
-                        .limit(1)
-                        .maybeSingle();
-
+                const { data: imageData, error: imageError } = await db.getFirstApartmentImage(apartment.id);
                 if (imageError) {
                     console.error(
                         "Error loading apartment image:",
@@ -115,11 +53,7 @@ export default function Home() {
                 let imageUrl = null;
 
                 if (imageData) {
-                    const { data: publicUrlData } = supabase.storage
-                        .from("apartment-images")
-                        .getPublicUrl(imageData.image_path);
-
-                    imageUrl = publicUrlData.publicUrl;
+                    imageUrl = db.getApartmentImageUrl(imageData.image_path);
                 }
 
                 return {

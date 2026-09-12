@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { useProfile } from "./../components/sub_components/ProfileContext";
 import homeIcon from "../assets/home.svg";
 import profileIcon from "../assets/profile.svg";
 import chatIcon from "../assets/chat.svg";
+import * as db from "./services/DatabaseService";
 
 import "./Header.css";
 
@@ -13,13 +13,11 @@ export default function Header() {
     const { profile } = useProfile();
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
+        db.getSession().then(({ data }) => {
             setIsLoggedIn(!!data.session);
         });
 
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = db.onAuthStateChange((session) => {
             setIsLoggedIn(!!session);
         });
 
@@ -28,11 +26,7 @@ export default function Header() {
         };
     }, []);
 
-    const profilePictureUrl = profile?.profile_picture_path
-        ? supabase.storage
-              .from("profile-pictures")
-              .getPublicUrl(profile.profile_picture_path).data.publicUrl
-        : null;
+    const profilePictureUrl = profile?.profile_picture_path ? db.getProfileImageUrl(profile.profile_picture_path) : null;
 
     return (
         <header className="header">

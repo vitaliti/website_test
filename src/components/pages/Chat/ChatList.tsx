@@ -1,5 +1,5 @@
 import type { ChatItem, Conversation } from "./ChatTypes";
-import { getConversation } from "../../services/DatabaseService";
+import * as db from "../../services/DatabaseService";
 
 type ChatListProps = {
     chats: ChatItem[];
@@ -47,7 +47,7 @@ export default function ChatList({
                             setNewChatUsername(null);
                             setShowMobileChat(true);
 
-                            const conversation = await getConversation(chat.id)
+                            const conversation = await db.getConversation(chat.id)
 
                             if (conversation.data) {
                                 await markConversationAsRead(

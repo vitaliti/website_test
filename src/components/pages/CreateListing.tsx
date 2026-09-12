@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import * as db from "../services/DatabaseService";
 import "./CreateListing.css";
 
 export default function CreateListing() {
@@ -22,10 +22,7 @@ export default function CreateListing() {
 
     useEffect(() => {
         async function loadNeighborhoods() {
-            const { data, error } = await supabase
-                .from("Neighborhoods")
-                .select("id, name")
-                .order("name");
+            const { data, error } = await db.getNeighborhoods();
 
             if (error) {
                 console.error("Error loading neighborhoods:", error);
@@ -51,7 +48,7 @@ export default function CreateListing() {
 
         const {
             data: { user },
-        } = await supabase.auth.getUser();
+        } = await db.getUser();
 
         if (!user) {
             setMessage("You must be logged in to create a listing.");
@@ -59,21 +56,17 @@ export default function CreateListing() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from("Apartments")
-            .insert({
-                creator_id: user.id,
-                city,
-                neighborhood_id: neighborhoodId,
-                price: Number(price),
-                floor: Number(floor),
-                rooms: Number(rooms),
-                storage,
-                ac,
-                garage,
-            })
-            .select()
-            .single();
+        const { data, error } = await db.createApartment(
+            user.id,
+            city,
+            neighborhoodId,
+            Number(price),
+            Number(floor),
+            Number(rooms),
+            storage,
+            ac,
+            garage
+        );
 
         if (error) {
             console.error("Error creating listing:", error);
@@ -87,28 +80,15 @@ export default function CreateListing() {
 
             const filePath = `${user.id}/${data.id}/${crypto.randomUUID()}-${picture.name}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from("apartment-images")
-                .upload(filePath, picture, {
-                    contentType: picture.type,
-                    upsert: false,
-                });
-
-            if (uploadError) {
+            const { error: uploadError } = await db.uploadApartmentImage(filePath, picture);
+             if (uploadError) {
                 console.error("Error uploading image:", uploadError);
                 setMessage("Listing created, but an image failed to upload.");
                 setMessageType("error");
                 return;
             }
 
-            const { error: imageRecordError } = await supabase
-                .from("ApartmentImages")
-                .insert({
-                    apartment_id: data.id,
-                    image_path: filePath,
-                    display_order: index,
-                });
-
+            const { error: imageRecordError } = await db.createApartmentImageRecord(data.id, filePath, index);
             if (imageRecordError) {
                 console.error("Error saving image record:", imageRecordError);
                 setMessage("Listing created, but an image record failed to save.");

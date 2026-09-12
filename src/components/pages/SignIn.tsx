@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./SignIn.css";
-import { supabase } from "../../lib/supabase";
+import * as db from "../services/DatabaseService";
 import { useNavigate } from "react-router-dom";
 
 export default function SignIn() {
@@ -17,11 +17,7 @@ export default function SignIn() {
 
     if (isRegistering) {
       // Register
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
+      const { error } = await db.signUp(email, password);
       if (error) {
         setMessage(error.message);
         return;
@@ -30,11 +26,7 @@ export default function SignIn() {
       setMessage("Registration successful! Check your email.");
     } else {
       // Sign in
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { error } = await db.signIn(email, password);
       if (error) {
         setMessage(error.message);
         return;

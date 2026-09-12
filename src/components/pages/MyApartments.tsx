@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import * as db from "../services/DatabaseService";
 import "./MyApartments.css";
 
 type ApartmentImage = {
@@ -32,24 +32,14 @@ export default function MyApartments() {
             setLoading(true);
             setError("");
 
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-
+            const { data: { user } } = await db.getUser();
             if (!user) {
                 setError("You must be logged in to view your apartments.");
                 setLoading(false);
                 return;
             }
 
-            const { data: apartmentsData, error: apartmentsError } =
-                await supabase
-                    .from("Apartments")
-                    .select(
-                        "id, city, neighborhood_id, price, floor, rooms, storage, ac, garage"
-                    )
-                    .eq("creator_id", user.id);
-
+            const { data: apartmentsData, error: apartmentsError } = await db.getUserApartments(user.id);
             if (apartmentsError) {
                 console.error("Error loading apartments:", apartmentsError);
                 setError("Failed to load your apartments.");
@@ -61,13 +51,7 @@ export default function MyApartments() {
 
             const apartmentsWithNeighborhoods = await Promise.all(
                 apartments.map(async (apartment) => {
-                    const { data: neighborhoodData, error: neighborhoodError } =
-                        await supabase
-                            .from("Neighborhoods")
-                            .select("name")
-                            .eq("id", apartment.neighborhood_id)
-                            .single();
-
+                    const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartment.neighborhood_id);
                     if (neighborhoodError) {
                         console.error(
                             "Error loading neighborhood:",
@@ -89,11 +73,7 @@ export default function MyApartments() {
             let imagesData: ApartmentImage[] = [];
 
             if (apartmentIds.length > 0) {
-                const { data, error: imagesError } = await supabase
-                    .from("ApartmentImages")
-                    .select("id, apartment_id, image_path")
-                    .in("apartment_id", apartmentIds);
-
+                const { data, error: imagesError } = await db.getApartmentsImages(apartmentIds);
                 if (imagesError) {
                     console.error("Error loading images:", imagesError);
                     setError("Failed to load apartment images.");
@@ -153,14 +133,7 @@ export default function MyApartments() {
                                 <div className="apartment-image">
                                     {firstImage ? (
                                         <img
-                                            src={
-                                                supabase.storage
-                                                    .from("apartment-images")
-                                                    .getPublicUrl(
-                                                        firstImage.image_path
-                                                    )
-                                                    .data.publicUrl
-                                            }
+                                            src={db.getApartmentImageUrl(firstImage.image_path)}
                                             alt={`${apartment.city} apartment`}
                                         />
                                     ) : (

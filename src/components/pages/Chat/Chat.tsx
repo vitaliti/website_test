@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import "./Chat.css";
 import type { ChatItem, Message, Conversation, Profile } from "./ChatTypes";
-import { supabase } from "../../../lib/supabase";
 import ChatList from "./ChatList";
 import ChatWindow from "./ChatWindow";
 import * as db from "../../services/DatabaseService";
@@ -57,15 +56,7 @@ export default function Chat() {
             return;
         }
 
-        const channel = supabase
-            .channel("user-messages")
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "Messages",
-                },
+        const channel = db.subscribeToMessages(
                 async (payload) => {
                     const newMessage = payload.new as {
                         id: string;
@@ -221,11 +212,8 @@ export default function Chat() {
                     }
                 }
             )
-            .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { db.removeChannel(channel); };
     }, [currentUserId, selectedChatId]);
 
     useEffect(() => {

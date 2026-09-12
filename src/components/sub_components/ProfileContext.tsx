@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import * as db from "../services/DatabaseService";
 
 type ProfileData = {
   id: string;
@@ -24,22 +24,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function loadProfile() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const { data: { user } } = await db.getUser();
       if (!user) {
         setProfile(null);
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("Profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
+      const { data, error } = await db.getFullProfile(user.id);
       if (error) {
         console.error("Error loading profile:", error);
         setProfile(null);
@@ -52,9 +44,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     loadProfile();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = db.onAuthStateChange((session) => {
       if (!session) {
         setProfile(null);
       } else {

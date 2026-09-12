@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
 import { useProfile } from "../../components/sub_components/ProfileContext";
+import * as db from "../services/DatabaseService";
 
 import "./Profile.css";
 
@@ -39,10 +39,7 @@ export default function Profile() {
             setLoading(true);
             setMessage("");
 
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-
+            const { data: { user } } = await db.getUser();
             if (user) {
                 setCurrentUserId(user.id);
             }
@@ -54,12 +51,7 @@ export default function Profile() {
                 return;
             }
 
-            const { data: profileData, error: profileError } = await supabase
-                .from("Profiles")
-                .select("*")
-                .eq("id", profileId)
-                .single();
-
+            const { data: profileData, error: profileError } = await db.getFullProfile(profileId);
             if (profileError) {
                 console.error("Error loading profile:", profileError);
                 setDisplayedProfile(null);
@@ -70,33 +62,16 @@ export default function Profile() {
 
             setDisplayedProfile(profileData);
 
-            const { data: apartmentData, error: apartmentError } =
-                await supabase
-                    .from("Apartments")
-                    .select(
-                        "id, city, neighborhood_id, price, floor, rooms, storage, ac, garage"
-                    )
-                    .eq("creator_id", profileId)
-                    .order("created_at", { ascending: false });
-
+            const { data: apartmentData, error: apartmentError } = await db.getUserApartments(profileId);
             if (apartmentError) {
                 console.error("Error loading apartments:", apartmentError);
                 setMessage("Failed to load apartments.");
             } else {
                 const apartmentsWithNeighborhoods = await Promise.all(
                     (apartmentData ?? []).map(async (apartment) => {
-                        const { data: neighborhoodData, error: neighborhoodError } =
-                            await supabase
-                                .from("Neighborhoods")
-                                .select("name")
-                                .eq("id", apartment.neighborhood_id)
-                                .single();
-
+                        const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartment.neighborhood_id);
                         if (neighborhoodError) {
-                            console.error(
-                                "Error loading neighborhood:",
-                                neighborhoodError
-                            );
+                            console.error("Error loading neighborhood:", neighborhoodError);
                         }
 
                         return {
@@ -139,13 +114,7 @@ export default function Profile() {
 
         const filePath = `${displayedProfile.id}/${crypto.randomUUID()}-${file.name}`;
 
-        const { error: uploadError } = await supabase.storage
-            .from("profile-pictures")
-            .upload(filePath, file, {
-                contentType: file.type,
-                upsert: false,
-            });
-
+        const { error: uploadError } = await db.uploadProfilePicture(filePath, file);
         if (uploadError) {
             console.error("Error uploading profile picture:", uploadError);
             setMessage("Failed to upload profile picture.");
@@ -154,34 +123,17 @@ export default function Profile() {
         }
 
         const oldPicturePath = displayedProfile.profile_picture_path;
-
-        const { data, error: updateError } = await supabase
-            .from("Profiles")
-            .update({
-                profile_picture_path: filePath,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", displayedProfile.id)
-            .select()
-            .single();
-
+        const { data, error: updateError } = await db.updateProfilePicture(displayedProfile.id, filePath);
         if (updateError) {
             console.error("Error updating profile picture path:", updateError);
-
-            await supabase.storage
-                .from("profile-pictures")
-                .remove([filePath]);
-
+            await db.deleteProfileImage(filePath);
             setMessage("Failed to update profile picture.");
             setUploadingPicture(false);
             return;
         }
 
         if (oldPicturePath) {
-            const { error: deleteError } = await supabase.storage
-                .from("profile-pictures")
-                .remove([oldPicturePath]);
-
+            const { error: deleteError } = await db.deleteProfileImage(oldPicturePath);
             if (deleteError) {
                 console.error("Error deleting old profile picture:", deleteError);
             }
@@ -210,16 +162,11 @@ export default function Profile() {
         setSaving(true);
         setMessage("");
 
-        const { data, error } = await supabase
-            .from("Profiles")
-            .update({
-                username: trimmedUsername,
-                bio: bio.trim() || null,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", displayedProfile.id)
-            .select()
-            .single();
+        const { data, error } = await db.updateProfile(
+            displayedProfile.id,
+            trimmedUsername,
+            bio.trim() || null
+        );
 
         if (error) {
             console.error("Error updating profile:", error);
@@ -249,8 +196,7 @@ export default function Profile() {
     }
 
     async function handleLogout() {
-        const { error } = await supabase.auth.signOut();
-
+        const { error } = await db.signOut();
         if (error) {
             console.error("Logout failed:", error);
             return;
@@ -272,16 +218,8 @@ export default function Profile() {
     }
 
     const isOwnProfile = currentUserId === displayedProfile.id;
-
-    const memberSince = new Date(
-        displayedProfile.created_at
-    ).toLocaleDateString();
-
-    const profilePictureUrl = displayedProfile.profile_picture_path
-        ? supabase.storage
-              .from("profile-pictures")
-              .getPublicUrl(displayedProfile.profile_picture_path).data.publicUrl
-        : null;
+    const memberSince = new Date(displayedProfile.created_at).toLocaleDateString();
+    const profilePictureUrl = displayedProfile.profile_picture_path ? db.getProfileImageUrl(displayedProfile.profile_picture_path) : null;
 
     return (
         <main className="profile-page">

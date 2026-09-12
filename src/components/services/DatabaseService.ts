@@ -7,6 +7,10 @@ export async function signUp(email: string, password: string) {
     });
 }
 
+export async function signOut() {
+    return supabase.auth.signOut();
+}
+
 export async function signIn(email: string, password: string) {
     return supabase.auth.signInWithPassword({
         email,
@@ -24,6 +28,25 @@ export function onAuthStateChange(callback: (session: any) => void) {
     });
 }
 
+export function subscribeToMessages(callback: (payload: any) => void) {
+    return supabase
+        .channel("user-messages")
+        .on(
+            "postgres_changes",
+            {
+                event: "INSERT",
+                schema: "public",
+                table: "Messages",
+            },
+            callback
+        )
+        .subscribe();
+}
+
+export function removeChannel(channel: any) {
+    return supabase.removeChannel(channel);
+}
+
 export async function getConversation(conversationId: string) {
     return supabase
         .from("Conversations")
@@ -39,6 +62,39 @@ export async function getProfile(userId: string) {
         .from("Profiles")
         .select("id, username, profile_picture_path")
         .eq("id", userId)
+        .single();
+}
+
+export async function getFullProfile(userId: string) {
+    return supabase
+        .from("Profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+}
+
+export async function updateProfile(id: string, username: string, bio: string | null) {
+    return supabase
+        .from("Profiles")
+        .update({
+            username,
+            bio,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single();
+}
+
+export async function updateProfilePicture(id: string, filePath: string) {
+    return supabase
+        .from("Profiles")
+        .update({
+            profile_picture_path: filePath,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
         .single();
 }
 
@@ -143,11 +199,33 @@ export async function createApartment(
         .single();
 }
 
-export async function createApartmentImageRecord(
-    apartmentId: string,
-    imagePath: string,
-    displayOrder: number
-) {
+export async function updateApartment(
+    id: string, 
+    city: string, 
+    neighborhoodId: string, 
+    price: string, 
+    floor: string, 
+    rooms: string, 
+    storage: boolean, 
+    ac: boolean, 
+    garage: boolean) {
+    return supabase
+        .from("Apartments")
+        .update({
+            city,
+            neighborhood_id: neighborhoodId,
+            price: Number(price),
+            floor: Number(floor),
+            rooms: Number(rooms),
+            storage,
+            ac,
+            garage,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+}
+
+export async function createApartmentImageRecord(apartmentId: string, imagePath: string, displayOrder: number) {
     return supabase
         .from("ApartmentImages")
         .insert({
@@ -155,6 +233,14 @@ export async function createApartmentImageRecord(
             image_path: imagePath,
             display_order: displayOrder,
         });
+}
+
+export async function updateApartmentImageOrder(imageId: string, apartmentId: string, displayOrder: number) {
+    return supabase
+        .from("ApartmentImages")
+        .update({ display_order: displayOrder })
+        .eq("id", imageId)
+        .eq("apartment_id", apartmentId);
 }
 
 export async function getFirstApartmentImage(apartmentId: string) {
@@ -237,6 +323,13 @@ export async function getApartmentById(id: string) {
         .single();
 }
 
+export async function getUserApartments(userId: string) {
+    return supabase
+        .from("Apartments")
+        .select("id, city, neighborhood_id, price, floor, rooms, storage, ac, garage")
+        .eq("creator_id", userId);
+}
+
 export async function deleteApartment(apartmentId: string, creatorId: string) {
     return supabase
         .from("Apartments")
@@ -252,10 +345,33 @@ export async function getApartmentImages(apartmentId: string) {
         .eq("apartment_id", apartmentId);
 }
 
+export async function getApartmentsImages(apartmentIds: string[]) {
+    return supabase
+        .from("ApartmentImages")
+        .select("id, apartment_id, image_path")
+        .in("apartment_id", apartmentIds);
+}
+
+export async function getOrderedApartmentImages(apartmentId: string) {
+    return supabase
+        .from("ApartmentImages")
+        .select("id, apartment_id, image_path, display_order")
+        .eq("apartment_id", apartmentId)
+        .order("display_order", { ascending: true });
+}
+
 export async function deleteApartmentImageRecords(apartmentId: string) {
     return supabase
         .from("ApartmentImages")
         .delete()
+        .eq("apartment_id", apartmentId);
+}
+
+export async function deleteSelectedApartmentImages(imageIds: string[], apartmentId: string) {
+    return supabase
+        .from("ApartmentImages")
+        .delete()
+        .in("id", imageIds)
         .eq("apartment_id", apartmentId);
 }
 
@@ -290,6 +406,12 @@ export async function uploadApartmentImage(filePath: string, picture: File) {
         });
 }
 
+export async function deleteApartmentImages(imagePaths: string[]) {
+    return supabase.storage
+        .from("apartment-images")
+        .remove(imagePaths);
+}
+
 export async function listApartmentFolder(apartmentFolder: string) {
     return supabase.storage
         .from("apartment-images")
@@ -304,15 +426,24 @@ export async function deleteApartmentFolderPlaceholder(apartmentFolder: string) 
         ]);
 }
 
-export async function deleteApartmentImages(imagePaths: string[]) {
-    return supabase.storage
-        .from("apartment-images")
-        .remove(imagePaths);
-}
-
 export function getProfileImageUrl(imagePath: string) {
     return supabase.storage
         .from("profile-pictures")
         .getPublicUrl(imagePath)
         .data.publicUrl;
+}
+
+export async function uploadProfilePicture(filePath: string, file: File) {
+    return supabase.storage
+        .from("profile-pictures")
+        .upload(filePath, file, {
+            contentType: file.type,
+            upsert: false,
+        });
+}
+
+export async function deleteProfileImage(filePath: string) {
+    return supabase.storage
+        .from("profile-pictures")
+        .remove([filePath]);
 }

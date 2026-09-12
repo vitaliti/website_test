@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import * as db from "../services/DatabaseService";
 import "./CreateListing.css";
 
 type ApartmentImage = {
@@ -45,22 +45,14 @@ export default function EditApartment() {
                 return;
             }
 
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-
+            const { data: { user } } = await db.getUser();
             if (!user) {
                 setError("You must be logged in.");
                 setLoading(false);
                 return;
             }
 
-            const { data: neighborhoodData, error: neighborhoodError } =
-                await supabase
-                    .from("Neighborhoods")
-                    .select("id, name")
-                    .order("name");
-
+            const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoods();
             if (neighborhoodError) {
                 console.error(
                     "Error loading neighborhoods:",
@@ -73,12 +65,7 @@ export default function EditApartment() {
 
             setNeighborhoods(neighborhoodData);
 
-            const { data, error } = await supabase
-                .from("Apartments")
-                .select("*")
-                .eq("id", id)
-                .single();
-
+            const { data, error } = await db.getApartmentById(id);
             if (error) {
                 console.error("Error loading apartment:", error);
                 setError("Failed to load apartment.");
@@ -92,12 +79,7 @@ export default function EditApartment() {
                 return;
             }
 
-            const { data: imageData, error: imageError } = await supabase
-                .from("ApartmentImages")
-                .select("id, apartment_id, image_path, display_order")
-                .eq("apartment_id", id)
-                .order("display_order", { ascending: true });
-
+            const { data: imageData, error: imageError } = await db.getOrderedApartmentImages(id);
             if (imageError) {
                 console.error("Error loading apartment images:", imageError);
                 setError("Failed to load apartment images.");
@@ -189,10 +171,7 @@ export default function EditApartment() {
         setSaving(true);
         setError("");
 
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
+        const { data: { user } } = await db.getUser();
         if (!user) {
             setError("You must be logged in.");
             setSaving(false);
@@ -204,12 +183,8 @@ export default function EditApartment() {
         );
 
         const imagePaths = imagesToDelete.map((image) => image.image_path);
-
         if (imagePaths.length > 0) {
-            const { error: storageError } = await supabase.storage
-                .from("apartment-images")
-                .remove(imagePaths);
-
+            const { error: storageError } = await db.deleteApartmentImages(imagePaths);
             if (storageError) {
                 console.error(
                     "Error deleting apartment images from storage:",
@@ -221,12 +196,7 @@ export default function EditApartment() {
             }
         }
 
-        const { error: databaseError } = await supabase
-            .from("ApartmentImages")
-            .delete()
-            .in("id", selectedImageIds)
-            .eq("apartment_id", id);
-
+        const { error: databaseError } = await db.deleteSelectedApartmentImages(selectedImageIds, id);
         if (databaseError) {
             console.error(
                 "Error deleting apartment image records:",
@@ -259,21 +229,7 @@ export default function EditApartment() {
         setSaving(true);
         setError("");
 
-        const { error } = await supabase
-            .from("Apartments")
-            .update({
-                city,
-                neighborhood_id: neighborhoodId,
-                price: Number(price),
-                floor: Number(floor),
-                rooms: Number(rooms),
-                storage,
-                ac,
-                garage,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", id);
-
+        const { error } = await db.updateApartment(id, city, neighborhoodId, price, floor, rooms, storage, ac, garage);
         if (error) {
             console.error("Error updating apartment:", error);
             setError(error.message);
@@ -283,15 +239,7 @@ export default function EditApartment() {
 
         for (let index = 0; index < images.length; index++) {
             const image = images[index];
-
-            const { error: imageOrderError } = await supabase
-                .from("ApartmentImages")
-                .update({
-                    display_order: index,
-                })
-                .eq("id", image.id)
-                .eq("apartment_id", id);
-
+            const { error: imageOrderError } = await db.updateApartmentImageOrder(image.id, id, index);
             if (imageOrderError) {
                 console.error(
                     "Error updating apartment image order:",
@@ -305,7 +253,7 @@ export default function EditApartment() {
 
         const {
             data: { user },
-        } = await supabase.auth.getUser();
+        } = await db.getUser();
 
         if (!user) {
             setError("You must be logged in.");
@@ -317,34 +265,17 @@ export default function EditApartment() {
             await Promise.all(
                 newPictures.map(async (picture, index) => {
                     const displayOrder = images.length + index;
-
                     const filePath = `${user.id}/${id}/${crypto.randomUUID()}-${picture.name}`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from("apartment-images")
-                        .upload(filePath, picture, {
-                            contentType: picture.type,
-                            upsert: false,
-                        });
-
+                    const { error: uploadError } = await db.uploadApartmentImage(filePath, picture);
                     if (uploadError) {
-                        throw new Error(
-                            "Apartment was updated, but an image failed to upload."
-                        );
+                        console.error("Error uploading apartment image:", uploadError);
+                        return;
                     }
 
-                    const { error: imageRecordError } = await supabase
-                        .from("ApartmentImages")
-                        .insert({
-                            apartment_id: id,
-                            image_path: filePath,
-                            display_order: displayOrder,
-                        });
-
+                    const { error: imageRecordError } = await db.createApartmentImageRecord(id, filePath, displayOrder);
                     if (imageRecordError) {
-                        throw new Error(
-                            "Image was uploaded, but its record failed to save."
-                        );
+                        console.error("Error saving apartment image record:", imageRecordError);
+                        return;
                     }
                 })
             );
@@ -529,11 +460,7 @@ export default function EditApartment() {
                             <>
                                 <div className="apartment-edit-images">
                                     {images.map((image, index) => {
-                                        const imageUrl = supabase.storage
-                                            .from("apartment-images")
-                                            .getPublicUrl(image.image_path)
-                                            .data.publicUrl;
-
+                                        const imageUrl = db.getApartmentImageUrl(image.image_path);
                                         const isSelected =
                                             selectedImageIds.includes(
                                                 image.id

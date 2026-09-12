@@ -13,7 +13,7 @@ export async function getConversation(conversationId: string) {
 export async function getProfile(userId: string) {
     return await supabase
         .from("Profiles")
-        .select("id, username")
+        .select("id, username, profile_picture_path")
         .eq("id", userId)
         .single();
 }
@@ -89,4 +89,76 @@ export async function updateConversationTimestamp(conversationId: string) {
             updated_at: new Date().toISOString(),
         })
         .eq("id", conversationId);
+}
+
+export async function getApartmentById(id: string) {
+    return await supabase
+        .from("Apartments")
+        .select("*")
+        .eq("id", id)
+        .single();
+}
+
+export async function deleteApartment(apartmentId: string, creatorId: string) {
+    return await supabase
+        .from("Apartments")
+        .delete()
+        .eq("id", apartmentId)
+        .eq("creator_id", creatorId);
+}
+
+export async function getApartmentImages(apartmentId: string) {
+    return await supabase
+        .from("ApartmentImages")
+        .select("id, apartment_id, image_path")
+        .eq("apartment_id", apartmentId);
+}
+
+export async function deleteApartmentImageRecords(apartmentId: string) {
+    return await supabase
+        .from("ApartmentImages")
+        .delete()
+        .eq("apartment_id", apartmentId);
+}
+
+export async function getNeighborhoodById(id: string) {
+    return await supabase
+        .from("Neighborhoods")
+        .select("name")
+        .eq("id", id)
+        .single();
+}
+
+export function getApartmentImageUrl(imagePath: string) {
+    return supabase.storage
+        .from("apartment-images")
+        .getPublicUrl(imagePath)
+        .data.publicUrl;
+}
+
+export async function listApartmentFolder(apartmentFolder: string) {
+    return await supabase.storage
+        .from("apartment-images")
+        .list(apartmentFolder);
+}
+
+export async function deleteApartmentFolderPlaceholder(apartmentFolder: string) {
+    return await supabase.storage
+        .from("apartment-images")
+        .remove([
+            `${apartmentFolder}/.emptyFolderPlaceholder`,
+        ]);
+}
+
+export async function deleteApartmentImages(imagePaths: string[]) {
+    return await supabase.storage
+        .from("apartment-images")
+        .remove(imagePaths);
+}
+
+export function getProfileImageUrl(imagePath: string) {
+    return supabase.storage
+        .from("profile-pictures")
+        .getPublicUrl(imagePath)
+        .data.publicUrl;
 }

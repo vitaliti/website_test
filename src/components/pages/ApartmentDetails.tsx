@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
 import profileIcon from "../../assets/profile.svg";
 import chatIcon from "../../assets/chat.svg";
 import "./ApartmentDetails.css";
+import * as db from "../services/DatabaseService";
 
 type CreatorProfile = {
     id: string;
@@ -52,17 +52,11 @@ export default function ApartmentDetails() {
 
             const {
                 data: { user },
-            } = await supabase.auth.getUser();
+            } = await db.getUser();
 
             setCurrentUserId(user?.id ?? null);
 
-            const { data: apartmentData, error: apartmentError } =
-                await supabase
-                    .from("Apartments")
-                    .select("*")
-                    .eq("id", id)
-                    .single();
-
+            const { data: apartmentData, error: apartmentError } = await db.getApartmentById(id);
             if (apartmentError) {
                 console.error("Error loading apartment:", apartmentError);
                 setError("Failed to load apartment.");
@@ -70,13 +64,7 @@ export default function ApartmentDetails() {
                 return;
             }
 
-            const { data: neighborhoodData, error: neighborhoodError } =
-                await supabase
-                    .from("Neighborhoods")
-                    .select("name")
-                    .eq("id", apartmentData.neighborhood_id)
-                    .single();
-
+            const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartmentData.neighborhood_id);
             if (neighborhoodError) {
                 console.error(
                     "Error loading neighborhood:",
@@ -87,23 +75,14 @@ export default function ApartmentDetails() {
                 return;
             }
 
-            const { data: creatorData, error: creatorError } = await supabase
-                .from("Profiles")
-                .select("id, profile_picture_path")
-                .eq("id", apartmentData.creator_id)
-                .single();
-
+            const { data: creatorData, error: creatorError } = await db.getProfile(apartmentData.creator_id);
             if (creatorError) {
                 console.error("Error loading creator profile:", creatorError);
             } else {
                 setCreatorProfile(creatorData);
             }
 
-            const { data: imagesData, error: imagesError } = await supabase
-                .from("ApartmentImages")
-                .select("id, apartment_id, image_path")
-                .eq("apartment_id", id);
-
+            const { data: imagesData, error: imagesError } = await db.getApartmentImages(id);
             if (imagesError) {
                 console.error(
                     "Error loading apartment images:",
@@ -147,16 +126,7 @@ export default function ApartmentDetails() {
                 ? otherUserId
                 : currentUserId;
 
-        const {
-            data: existingConversation,
-            error: conversationError,
-        } = await supabase
-            .from("Conversations")
-            .select("id")
-            .eq("user1_id", user1Id)
-            .eq("user2_id", user2Id)
-            .maybeSingle();
-
+        const { data: existingConversation, error: conversationError } = await db.getConversationBetweenUsers(user1Id, user2Id);
         if (conversationError) {
             console.error(
                 "Error checking conversation:",
@@ -198,13 +168,7 @@ export default function ApartmentDetails() {
     }
 
     const selectedImageData = apartment.images[selectedImage];
-
-    const selectedImageUrl = selectedImageData
-        ? supabase.storage
-              .from("apartment-images")
-              .getPublicUrl(selectedImageData.image_path)
-              .data.publicUrl
-        : null;
+    const selectedImageUrl = selectedImageData ? db.getApartmentImageUrl(selectedImageData.image_path) : null;
 
     async function handleDelete() {
         if (!id) return;
@@ -215,22 +179,13 @@ export default function ApartmentDetails() {
 
         if (!confirmed) return;
 
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
+        const { data: { user } } = await db.getUser();
         if (!user) {
             console.error("User is not logged in.");
             return;
         }
 
-        const { data: apartmentData, error: apartmentCheckError } =
-            await supabase
-                .from("Apartments")
-                .select("creator_id")
-                .eq("id", id)
-                .single();
-
+        const { data: apartmentData, error: apartmentCheckError } =  await db.getApartmentById(id);
         if (apartmentCheckError) {
             console.error(
                 "Error checking apartment ownership:",
@@ -244,11 +199,7 @@ export default function ApartmentDetails() {
             return;
         }
 
-        const { data: images, error: imagesError } = await supabase
-                .from("ApartmentImages")
-                .select("image_path")
-                .eq("apartment_id", id);
-
+        const { data: images, error: imagesError } = await db.getApartmentImages(id);
         if (imagesError) {
             console.error("Error loading apartment images:", imagesError);
             return;
@@ -256,11 +207,7 @@ export default function ApartmentDetails() {
 
         if (images && images.length > 0) {
             const imagePaths = images.map((image) => image.image_path);
-
-            const { error: storageError } = await supabase.storage
-                .from("apartment-images")
-                .remove(imagePaths);
-
+            const { error: storageError } = await db.deleteApartmentImages(imagePaths);
             if (storageError) {
                 console.error(
                     "Error deleting apartment images:",
@@ -271,12 +218,7 @@ export default function ApartmentDetails() {
         }
 
         const apartmentFolder = `${user.id}/${id}`;
-
-        const { data: folderContents, error: folderListError } =
-            await supabase.storage
-                .from("apartment-images")
-                .list(apartmentFolder);
-
+        const { data: folderContents, error: folderListError } = await db.listApartmentFolder(apartmentFolder);
         if (folderListError) {
             console.error(
                 "Error checking apartment folder:",
@@ -290,13 +232,7 @@ export default function ApartmentDetails() {
         );
 
         if (emptyFolderPlaceholder) {
-            const { error: placeholderDeleteError,
-            } = await supabase.storage
-                .from("apartment-images")
-                .remove([
-                    `${apartmentFolder}/.emptyFolderPlaceholder`,
-                ]);
-
+            const { error: placeholderDeleteError } = await db.deleteApartmentFolderPlaceholder(apartmentFolder);
             if (placeholderDeleteError) {
                 console.error(
                     "Error deleting apartment folder placeholder:",
@@ -306,11 +242,7 @@ export default function ApartmentDetails() {
             }
         }
 
-        const { error: imageRecordsError } = await supabase
-            .from("ApartmentImages")
-            .delete()
-            .eq("apartment_id", id);
-
+        const { error: imageRecordsError } = await db.deleteApartmentImageRecords(id);
         if (imageRecordsError) {
             console.error(
                 "Error deleting apartment image records:",
@@ -319,12 +251,7 @@ export default function ApartmentDetails() {
             return;
         }
 
-        const { error: apartmentDeleteError } = await supabase
-            .from("Apartments")
-            .delete()
-            .eq("id", id)
-            .eq("creator_id", user.id);
-
+        const { error: apartmentDeleteError } = await db.deleteApartment(id, user.id);
         if (apartmentDeleteError) {
             console.error(
                 "Error deleting apartment:",
@@ -361,11 +288,7 @@ export default function ApartmentDetails() {
                     {apartment.images.length > 1 && (
                         <div className="apartment-details-thumbnails">
                             {apartment.images.map((image, index) => {
-                                const imageUrl = supabase.storage
-                                    .from("apartment-images")
-                                    .getPublicUrl(image.image_path)
-                                    .data.publicUrl;
-
+                                const imageUrl = db.getApartmentImageUrl(image.image_path);
                                 return (
                                     <button
                                         key={image.id}
@@ -397,13 +320,7 @@ export default function ApartmentDetails() {
                                 >
                                     {creatorProfile.profile_picture_path ? (
                                         <img
-                                            src={
-                                                supabase.storage
-                                                    .from("profile-pictures")
-                                                    .getPublicUrl(
-                                                        creatorProfile.profile_picture_path
-                                                    ).data.publicUrl
-                                            }
+                                            src={db.getProfileImageUrl(creatorProfile.profile_picture_path)}
                                             alt="Listing creator"
                                         />
                                     ) : (

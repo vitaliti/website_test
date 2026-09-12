@@ -5,7 +5,7 @@ import type { ChatItem, Message, Conversation, Profile } from "./ChatTypes";
 import { supabase } from "../../../lib/supabase";
 import ChatList from "./ChatList";
 import ChatWindow from "./ChatWindow";
-import * as dbService from "../../services/DatabaseService";
+import * as db from "../../services/DatabaseService";
 
 export default function Chat() {
     const [searchParams] = useSearchParams();
@@ -77,7 +77,7 @@ export default function Chat() {
                     /*
                      * Get the conversation that this message belongs to.
                      */
-                    const { data: conversation, error: conversationError } = await dbService.getConversation(newMessage.conversation_id);
+                    const { data: conversation, error: conversationError } = await db.getConversation(newMessage.conversation_id);
 
                     if (conversationError) {
                         return;
@@ -174,7 +174,7 @@ export default function Chat() {
                                 ? conversation.user2_id
                                 : conversation.user1_id;
 
-                        const { data: profile, error: profileError } = await dbService.getProfile(otherUserId);
+                        const { data: profile, error: profileError } = await db.getProfile(otherUserId);
 
                         if (profileError) {
                             console.error(
@@ -245,7 +245,7 @@ export default function Chat() {
     const loadChats = async () => {
         setLoading(true);
 
-        const {data: { user }, error: userError} = await dbService.getUser();
+        const {data: { user }, error: userError} = await db.getUser();
 
         if (userError || !user) {
             console.error("Could not get logged-in user:", userError);
@@ -255,7 +255,7 @@ export default function Chat() {
 
         setCurrentUserId(user.id);
 
-        const { data: conversations, error: conversationsError } = await dbService.getUserConversations(user.id);
+        const { data: conversations, error: conversationsError } = await db.getUserConversations(user.id);
         if (conversationsError) {
             console.error("Could not load conversations:", conversationsError);
             setLoading(false);
@@ -269,7 +269,7 @@ export default function Chat() {
                     ? conversation.user2_id
                     : conversation.user1_id;
 
-            const { data: profile, error: profileError } = await dbService.getProfile(otherUserId);
+            const { data: profile, error: profileError } = await db.getProfile(otherUserId);
             if (profileError) {
                 console.error(
                     "Could not load profile:",
@@ -278,7 +278,7 @@ export default function Chat() {
                 continue;
             }
 
-            const { data: messages, error: messageError } = await dbService.getMessages(conversation.id, 1);
+            const { data: messages, error: messageError } = await db.getMessages(conversation.id, 1);
             if (messageError) {
                 console.error("Could not load last message:", messageError);
             }
@@ -342,7 +342,7 @@ export default function Chat() {
                 setNewChatUsername(null);
                 setShowMobileChat(true);
             } else {
-                const { data: profile, error: profileError } = await dbService.getProfile(userIdFromUrl);
+                const { data: profile, error: profileError } = await db.getProfile(userIdFromUrl);
 
                 if (profileError) {
                     console.error(
@@ -379,7 +379,7 @@ export default function Chat() {
             return;
         }
 
-        const { data, error } = await dbService.getMessages(conversationId, 20)
+        const { data, error } = await db.getMessages(conversationId, 20)
         if (error) {
             console.error("Could not load messages:", error);
             return;
@@ -406,7 +406,7 @@ export default function Chat() {
                 ? "user1_last_read_at"
                 : "user2_last_read_at";
 
-        const { error } = await dbService.updateConversationReadAt(conversation.id, column);
+        const { error } = await db.updateConversationReadAt(conversation.id, column);
         if (error) {
             console.error("Could not mark conversation as read:", error);
             return;
@@ -442,7 +442,7 @@ export default function Chat() {
                     ? newChatUserId
                     : currentUserId;
 
-            const { data: existingConversation, error: existingConversationError } = await dbService.getConversationBetweenUsers(user1Id, user2Id);
+            const { data: existingConversation, error: existingConversationError } = await db.getConversationBetweenUsers(user1Id, user2Id);
             if (existingConversationError) {
                 console.error(
                     "Could not check for existing conversation:",
@@ -454,7 +454,7 @@ export default function Chat() {
             if (existingConversation) {
                 conversationId = existingConversation.id;
             } else {
-                const { data: newConversation,error: createError } = await dbService.createConversation(user1Id, user2Id);
+                const { data: newConversation,error: createError } = await db.createConversation(user1Id, user2Id);
 
                 if (createError) {
                     console.error(
@@ -473,13 +473,13 @@ export default function Chat() {
             return;
         }
 
-        const { data: newMessage, error } = await dbService.sendMessage(conversationId, currentUserId, text);
+        const { data: newMessage, error } = await db.sendMessage(conversationId, currentUserId, text);
         if (error) {
             console.error("Could not send message:", error);
             return;
         }
 
-        const { error: updateError } = await dbService.updateConversationTimestamp(conversationId);
+        const { error: updateError } = await db.updateConversationTimestamp(conversationId);
         if (updateError) {
             console.error("Could not update conversation:", updateError);
         }

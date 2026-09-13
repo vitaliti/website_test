@@ -7,6 +7,7 @@ export default function CreateListing() {
     const [messageType, setMessageType] = useState<"success" | "error" | "">("");
 
     const [city, setCity] = useState("");
+    const [description, setDescription] = useState("");
     const [neighborhoodId, setNeighborhoodId] = useState("");
     const [neighborhoods, setNeighborhoods] = useState<
         { id: string; name: string }[]
@@ -59,6 +60,7 @@ export default function CreateListing() {
         const { data, error } = await db.createApartment(
             user.id,
             city,
+            description,
             neighborhoodId,
             Number(price),
             Number(floor),
@@ -191,6 +193,25 @@ export default function CreateListing() {
                                     required
                                 />
                             </div>
+                        </div>
+
+                        <div className="form-field">
+                            <label htmlFor="description">Description</label>
+
+                            <textarea
+                                id="description"
+                                maxLength={1000}
+                                placeholder="Describe the apartment..."
+                                value={description}
+                                    onChange={(event) => {
+                                        const lines = event.target.value.split("\n");
+
+                                        if (lines.length <= 15) {
+                                            setDescription(event.target.value);
+                                        }
+                                    }}
+                                rows={5}
+                            />
                         </div>
 
                         <div className="form-checkboxes">

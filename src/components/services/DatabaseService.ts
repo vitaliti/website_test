@@ -174,6 +174,7 @@ export async function updateConversationTimestamp(conversationId: string) {
 export async function createApartment(
     creatorId: string,
     city: string,
+    description: string,
     neighborhoodId: string,
     price: number,
     floor: number,
@@ -187,6 +188,7 @@ export async function createApartment(
         .insert({
             creator_id: creatorId,
             city,
+            description,
             neighborhood_id: neighborhoodId,
             price,
             floor,
@@ -201,7 +203,8 @@ export async function createApartment(
 
 export async function updateApartment(
     id: string, 
-    city: string, 
+    city: string,
+    description: string,
     neighborhoodId: string, 
     price: string, 
     floor: string, 
@@ -213,6 +216,7 @@ export async function updateApartment(
         .from("Apartments")
         .update({
             city,
+            description,
             neighborhood_id: neighborhoodId,
             price: Number(price),
             floor: Number(floor),

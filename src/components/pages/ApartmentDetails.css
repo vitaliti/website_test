@@ -75,6 +75,22 @@
   font-size: 1.1rem;
 }
 
+.apartment-details-description {
+  margin-bottom: 30px;
+}
+
+.apartment-details-description h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.apartment-details-description p {
+  margin: 0;
+  color: #444;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
 .apartment-details-info {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

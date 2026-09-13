@@ -20,6 +20,7 @@ type Apartment = {
     id: string;
     creator_id: string;
     city: string;
+    description: string | null;
     neighborhood: string;
     price: number;
     floor: number;
@@ -373,6 +374,13 @@ export default function ApartmentDetails() {
                         <p className="apartment-details-location">
                             {apartment.city}
                         </p>
+
+                        {apartment.description && (
+                            <div className="apartment-details-description">
+                                <h2>Description</h2>
+                                <p>{apartment.description}</p>
+                            </div>
+                        )}
 
                         <div className="apartment-details-info">
                             <div>

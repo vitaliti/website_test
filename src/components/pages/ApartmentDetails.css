@@ -64,6 +64,29 @@
   color: #777;
 }
 
+.apartment-details-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.apartment-favorite-button {
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: #f1f3f6;
+    color: #d33;
+    font-size: 3rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.apartment-favorite-button:hover {
+    background-color: #e5e8ec;
+}
+
 .apartment-details-content h1 {
   margin: 10px 0 5px;
   font-size: 1.8rem;

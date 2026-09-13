@@ -42,6 +42,7 @@ export default function ApartmentDetails() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [isFavorite, setIsFavorite] = useState(false);
 
     useEffect(() => {
         async function loadApartment() {
@@ -63,6 +64,14 @@ export default function ApartmentDetails() {
                 setError("Failed to load apartment.");
                 setLoading(false);
                 return;
+            }
+
+            if (user && user.id !== apartmentData.creator_id) {
+                const { data: favoriteData, error: favoriteError } = await db.isApartmentFavorite(user.id, id);
+                if (favoriteError) {
+                    console.error("Error checking favorite:", favoriteError);
+                }
+                setIsFavorite(favoriteData !== null);
             }
 
             const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartmentData.neighborhood_id);
@@ -144,6 +153,32 @@ export default function ApartmentDetails() {
         }
 
         navigate(`/chat?user=${otherUserId}`);
+    }
+
+    async function handleToggleFavorite() {
+        if (!currentUserId || !id || currentUserId === apartment?.creator_id) {
+            return;
+        }
+
+        if (isFavorite) {
+            const { error } = await db.removeFavorite(currentUserId, id);
+
+            if (error) {
+                console.error("Error removing favorite:", error);
+                return;
+            }
+
+            setIsFavorite(false);
+        } else {
+            const { error } = await db.addFavorite(currentUserId, id);
+
+            if (error) {
+                console.error("Error adding favorite:", error);
+                return;
+            }
+
+            setIsFavorite(true);
+        }
     }
 
     if (loading) {
@@ -364,9 +399,21 @@ export default function ApartmentDetails() {
                             </div>
                         )}
 
-                        <div className="apartment-details-price">
-                            €{apartment.price}
-                            <span> / month</span>
+                        <div className="apartment-details-price-row">
+                            <div className="apartment-details-price">
+                                €{apartment.price}
+                                <span> / month</span>
+                            </div>
+
+                            {currentUserId && currentUserId !== apartment.creator_id && (
+                                <button
+                                    className="apartment-favorite-button"
+                                    onClick={handleToggleFavorite}
+                                    aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                                >
+                                    {isFavorite ? "♥" : "♡"}
+                                </button>
+                            )}
                         </div>
 
                         <h1>{apartment.neighborhood}</h1>

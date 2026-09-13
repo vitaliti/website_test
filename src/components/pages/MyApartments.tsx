@@ -22,8 +22,21 @@ type Apartment = {
     images: ApartmentImage[];
 };
 
+type FavoriteApartment = {
+    id: string;
+    city: string;
+    neighborhood_id: string;
+    price: number;
+    floor: number;
+    rooms: number;
+    storage: boolean;
+    ac: boolean;
+    garage: boolean;
+};
+
 export default function MyApartments() {
     const [apartments, setApartments] = useState<Apartment[]>([]);
+    const [favorites, setFavorites] = useState<Apartment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -43,6 +56,15 @@ export default function MyApartments() {
             if (apartmentsError) {
                 console.error("Error loading apartments:", apartmentsError);
                 setError("Failed to load your apartments.");
+                setLoading(false);
+                return;
+            }
+
+            const { data: favoritesData, error: favoritesError } = await db.getUserFavorites(user.id);
+            console.log("Favorites data:", favoritesData);
+            if (favoritesError) {
+                console.error("Error loading favorites:", favoritesError);
+                setError("Failed to load your favorites.");
                 setLoading(false);
                 return;
             }
@@ -93,6 +115,44 @@ export default function MyApartments() {
                 }));
 
             setApartments(apartmentsWithImages);
+
+            const favoriteApartments = (favoritesData ?? [])
+                .map((favorite) => favorite.Apartments as unknown as FavoriteApartment);
+
+            const favoriteWithNeighborhoods = await Promise.all(
+                favoriteApartments.map(async (apartment) => {
+                    const { data: neighborhoodData } = await db.getNeighborhoodById(
+                        apartment.neighborhood_id
+                    );
+
+                    return {
+                        ...apartment,
+                        neighborhood: neighborhoodData?.name ?? "",
+                    };
+                })
+            );
+
+            const favoriteIds = favoriteApartments.map(
+                (apartment) => apartment.id
+            );
+
+            let favoriteImagesData: ApartmentImage[] = [];
+
+            if (favoriteIds.length > 0) {
+                const { data } = await db.getApartmentsImages(favoriteIds);
+                favoriteImagesData = data ?? [];
+            }
+
+            const favoritesWithImages: Apartment[] =
+                favoriteWithNeighborhoods.map((apartment) => ({
+                    ...apartment,
+                    images: favoriteImagesData.filter(
+                        (image) => image.apartment_id === apartment.id
+                    ),
+                }));
+
+            setFavorites(favoritesWithImages);
+
             setLoading(false);
         }
 
@@ -107,69 +167,126 @@ export default function MyApartments() {
         return <p className="apartments-status error">{error}</p>;
     }
 
-    if (apartments.length === 0) {
-        return (
-            <p className="apartments-status">
-                You haven't created any apartment listings yet.
-            </p>
-        );
-    }
-
     return (
         <main className="my-apartments">
             <div className="apartments-container">
                 <h1>My Apartments</h1>
 
-                <div className="apartments-grid">
-                    {apartments.map((apartment) => {
-                        const firstImage = apartment.images[0];
+                {apartments.length === 0 ? (
+                    <p className="apartments-status">
+                        You haven't created any apartment listings yet.
+                    </p>
+                ) : (
+                    <div className="apartments-grid">
+                        {apartments.map((apartment) => {
+                            const firstImage = apartment.images[0];
 
-                        return (
-                            <Link
-                                key={apartment.id}
-                                to={`/apartments/${apartment.id}`}
-                                className="apartment-card"
-                            >
-                                <div className="apartment-image">
-                                    {firstImage ? (
-                                        <img
-                                            src={db.getApartmentImageUrl(firstImage.image_path)}
-                                            alt={`${apartment.city} apartment`}
-                                        />
-                                    ) : (
-                                        "No image"
-                                    )}
-                                </div>
-
-                                <div className="apartment-info">
-                                    <div className="apartment-price">
-                                        {apartment.price} €
-                                        <span> / month</span>
-                                    </div>
-
-                                    <h2>{apartment.rooms} rooms</h2>
-
-                                    <p className="apartment-location">
-                                        {apartment.neighborhood},{" "}
-                                        {apartment.city}
-                                    </p>
-
-                                    <div className="apartment-details">
-                                        <span>Floor {apartment.floor}</span>
-
-                                        {apartment.storage && (
-                                            <span>Storage</span>
-                                        )}
-                                        {apartment.ac && <span>AC</span>}
-                                        {apartment.garage && (
-                                            <span>Garage</span>
+                            return (
+                                <Link
+                                    key={apartment.id}
+                                    to={`/apartments/${apartment.id}`}
+                                    className="apartment-card"
+                                >
+                                    <div className="apartment-image">
+                                        {firstImage ? (
+                                            <img
+                                                src={db.getApartmentImageUrl(firstImage.image_path)}
+                                                alt={`${apartment.city} apartment`}
+                                            />
+                                        ) : (
+                                            "No image"
                                         )}
                                     </div>
-                                </div>
-                            </Link>
-                        );
-                    })}
-                </div>
+
+                                    <div className="apartment-info">
+                                        <div className="apartment-price">
+                                            {apartment.price} €
+                                            <span> / month</span>
+                                        </div>
+
+                                        <h2>{apartment.rooms} rooms</h2>
+
+                                        <p className="apartment-location">
+                                            {apartment.neighborhood},{" "}
+                                            {apartment.city}
+                                        </p>
+
+                                        <div className="apartment-details">
+                                            <span>Floor {apartment.floor}</span>
+
+                                            {apartment.storage && (
+                                                <span>Storage</span>
+                                            )}
+                                            {apartment.ac && <span>AC</span>}
+                                            {apartment.garage && (
+                                                <span>Garage</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <h1>Favorites</h1>
+
+                {favorites.length === 0 ? (
+                    <p className="apartments-status">
+                        You haven't added any favorites yet.
+                    </p>
+                ) : (
+                    <div className="apartments-grid">
+                        {favorites.map((apartment) => {
+                            const firstImage = apartment.images?.[0];
+
+                            return (
+                                <Link
+                                    key={apartment.id}
+                                    to={`/apartments/${apartment.id}`}
+                                    className="apartment-card"
+                                >
+                                    <div className="apartment-image">
+                                        {firstImage ? (
+                                            <img
+                                                src={db.getApartmentImageUrl(firstImage.image_path)}
+                                                alt={`${apartment.city} apartment`}
+                                            />
+                                        ) : (
+                                            "No image"
+                                        )}
+                                    </div>
+
+                                    <div className="apartment-info">
+                                        <div className="apartment-price">
+                                            {apartment.price} €
+                                            <span> / month</span>
+                                        </div>
+
+                                        <h2>{apartment.rooms} rooms</h2>
+
+                                        <p className="apartment-location">
+                                            {apartment.neighborhood},{" "}
+                                            {apartment.city}
+                                        </p>
+
+                                        <div className="apartment-details">
+                                            <span>Floor {apartment.floor}</span>
+
+                                            {apartment.storage && (
+                                                <span>Storage</span>
+                                            )}
+                                            {apartment.ac && <span>AC</span>}
+                                            {apartment.garage && (
+                                                <span>Garage</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </main>
     );

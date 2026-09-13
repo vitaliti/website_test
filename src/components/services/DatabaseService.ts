@@ -394,6 +394,45 @@ export async function getNeighborhoods() {
         .order("name");
 }
 
+export async function getUserFavorites(userId: string) {
+    return supabase
+        .from("Favorites")
+        .select(`
+            id,
+            apartment_id,
+            created_at,
+            Apartments (*)
+        `)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+}
+
+export async function isApartmentFavorite(userId: string, apartmentId: string) {
+    return supabase
+        .from("Favorites")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("apartment_id", apartmentId)
+        .maybeSingle();
+}
+
+export async function addFavorite(userId: string, apartmentId: string) {
+    return supabase
+        .from("Favorites")
+        .insert({
+            user_id: userId,
+            apartment_id: apartmentId,
+        });
+}
+
+export async function removeFavorite(userId: string, apartmentId: string) {
+    return supabase
+        .from("Favorites")
+        .delete()
+        .eq("user_id", userId)
+        .eq("apartment_id", apartmentId);
+}
+
 export function getApartmentImageUrl(imagePath: string) {
     return supabase.storage
         .from("apartment-images")

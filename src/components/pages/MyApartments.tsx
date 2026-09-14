@@ -34,6 +34,60 @@ type FavoriteApartment = {
     garage: boolean;
 };
 
+async function prepareApartments<T extends {
+    id: string;
+    neighborhood_id: string;
+}>(
+    apartments: T[]
+): Promise<(T & {
+    neighborhood: string;
+    images: ApartmentImage[];
+})[] | null> {
+    const apartmentsWithNeighborhoods = await Promise.all(
+        apartments.map(async (apartment) => {
+            const { data: neighborhoodData, error: neighborhoodError } =
+                await db.getNeighborhoodById(apartment.neighborhood_id);
+
+            if (neighborhoodError) {
+                console.error(
+                    "Error loading neighborhood:",
+                    neighborhoodError
+                );
+            }
+
+            return {
+                ...apartment,
+                neighborhood: neighborhoodData?.name ?? "",
+            };
+        })
+    );
+
+    const apartmentIds = apartments.map(
+        (apartment) => apartment.id
+    );
+
+    let imagesData: ApartmentImage[] = [];
+
+    if (apartmentIds.length > 0) {
+        const { data, error: imagesError } =
+            await db.getApartmentsImages(apartmentIds);
+
+        if (imagesError) {
+            console.error("Error loading images:", imagesError);
+            return null;
+        }
+
+        imagesData = data ?? [];
+    }
+
+    return apartmentsWithNeighborhoods.map((apartment) => ({
+        ...apartment,
+        images: imagesData.filter(
+            (image) => image.apartment_id === apartment.id
+        ),
+    }));
+}
+
 export default function MyApartments() {
     const [apartments, setApartments] = useState<Apartment[]>([]);
     const [favorites, setFavorites] = useState<Apartment[]>([]);
@@ -70,88 +124,25 @@ export default function MyApartments() {
             }
 
             const apartments = apartmentsData ?? [];
-
-            const apartmentsWithNeighborhoods = await Promise.all(
-                apartments.map(async (apartment) => {
-                    const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartment.neighborhood_id);
-                    if (neighborhoodError) {
-                        console.error(
-                            "Error loading neighborhood:",
-                            neighborhoodError
-                        );
-                    }
-
-                    return {
-                        ...apartment,
-                        neighborhood: neighborhoodData?.name ?? "",
-                    };
-                })
-            );
-
-            const apartmentIds = apartments.map(
-                (apartment) => apartment.id
-            );
-
-            let imagesData: ApartmentImage[] = [];
-
-            if (apartmentIds.length > 0) {
-                const { data, error: imagesError } = await db.getApartmentsImages(apartmentIds);
-                if (imagesError) {
-                    console.error("Error loading images:", imagesError);
-                    setError("Failed to load apartment images.");
-                    setLoading(false);
-                    return;
-                }
-
-                imagesData = data ?? [];
+            const apartmentsWithData = await prepareApartments(apartments);
+            if (!apartmentsWithData) {
+                setError("Failed to load apartment images.");
+                setLoading(false);
+                return;
             }
 
-            const apartmentsWithImages: Apartment[] =
-                apartmentsWithNeighborhoods.map((apartment) => ({
-                    ...apartment,
-                    images: imagesData.filter(
-                        (image) => image.apartment_id === apartment.id
-                    ),
-                }));
-
-            setApartments(apartmentsWithImages);
+            setApartments(apartmentsWithData);
 
             const favoriteApartments = (favoritesData ?? [])
-                .map((favorite) => favorite.Apartments as unknown as FavoriteApartment);
+                .map(
+                    (favorite) =>
+                        favorite.Apartments as unknown as FavoriteApartment
+                );
 
-            const favoriteWithNeighborhoods = await Promise.all(
-                favoriteApartments.map(async (apartment) => {
-                    const { data: neighborhoodData } = await db.getNeighborhoodById(
-                        apartment.neighborhood_id
-                    );
+            const favoritesWithData =
+                await prepareApartments(favoriteApartments);
 
-                    return {
-                        ...apartment,
-                        neighborhood: neighborhoodData?.name ?? "",
-                    };
-                })
-            );
-
-            const favoriteIds = favoriteApartments.map(
-                (apartment) => apartment.id
-            );
-
-            let favoriteImagesData: ApartmentImage[] = [];
-
-            if (favoriteIds.length > 0) {
-                const { data } = await db.getApartmentsImages(favoriteIds);
-                favoriteImagesData = data ?? [];
-            }
-
-            const favoritesWithImages: Apartment[] =
-                favoriteWithNeighborhoods.map((apartment) => ({
-                    ...apartment,
-                    images: favoriteImagesData.filter(
-                        (image) => image.apartment_id === apartment.id
-                    ),
-                }));
-
-            setFavorites(favoritesWithImages);
+            setFavorites(favoritesWithData ?? []);
 
             setLoading(false);
         }

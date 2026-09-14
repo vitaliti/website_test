@@ -43,6 +43,7 @@ export default function ApartmentDetails() {
     const [error, setError] = useState("");
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [isReported, setIsReported] = useState(false);
 
     useEffect(() => {
         async function loadApartment() {
@@ -72,6 +73,12 @@ export default function ApartmentDetails() {
                     console.error("Error checking favorite:", favoriteError);
                 }
                 setIsFavorite(favoriteData !== null);
+
+                const { data: reportData, error: reportError } = await db.getApartmentReport(user.id, id);
+                if (reportError) {
+                    console.error("Error checking report:", reportError);
+                }
+                setIsReported(reportData !== null);
             }
 
             const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartmentData.neighborhood_id);
@@ -178,6 +185,38 @@ export default function ApartmentDetails() {
             }
 
             setIsFavorite(true);
+        }
+    }
+
+    async function handleReport() {
+        if (!currentUserId || !id || currentUserId === apartment?.creator_id) {
+            return;
+        }
+
+        if (isReported) {
+            const { error } = await db.removeApartmentReport(
+                currentUserId,
+                id
+            );
+
+            if (error) {
+                console.error("Error removing report:", error);
+                return;
+            }
+
+            setIsReported(false);
+        } else {
+            const { error } = await db.reportApartment(
+                currentUserId,
+                id
+            );
+
+            if (error) {
+                console.error("Error reporting apartment:", error);
+                return;
+            }
+
+            setIsReported(true);
         }
     }
 
@@ -406,13 +445,25 @@ export default function ApartmentDetails() {
                             </div>
 
                             {currentUserId && currentUserId !== apartment.creator_id && (
-                                <button
-                                    className="apartment-favorite-button"
-                                    onClick={handleToggleFavorite}
-                                    aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                                >
-                                    {isFavorite ? "♥" : "♡"}
-                                </button>
+                                <div className="apartment-action-buttons">
+                                    <>
+                                        <button
+                                            className="apartment-favorite-button"
+                                            onClick={handleToggleFavorite}
+                                            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                                        >
+                                            {isFavorite ? "♥" : "♡"}
+                                        </button>
+
+                                        <button
+                                            className="apartment-report-button"
+                                            onClick={handleReport}
+                                            aria-label={isReported ? "Apartment reported" : "Report apartment"}
+                                        >
+                                            {isReported ? "⚑" : "⚐"}
+                                        </button>
+                                    </>
+                                </div>
                             )}
                         </div>
 

@@ -433,6 +433,32 @@ export async function removeFavorite(userId: string, apartmentId: string) {
         .eq("apartment_id", apartmentId);
 }
 
+export async function getApartmentReport(userId: string, apartmentId: string) {
+    return supabase
+        .from("ApartmentReports")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("apartment_id", apartmentId)
+        .maybeSingle();
+}
+
+export async function reportApartment(userId: string, apartmentId: string) {
+    return supabase
+        .from("ApartmentReports")
+        .insert({
+            user_id: userId,
+            apartment_id: apartmentId,
+        });
+}
+
+export async function removeApartmentReport(userId: string, apartmentId: string) {
+    return supabase
+        .from("ApartmentReports")
+        .delete()
+        .eq("user_id", userId)
+        .eq("apartment_id", apartmentId);
+}
+
 export function getApartmentImageUrl(imagePath: string) {
     return supabase.storage
         .from("apartment-images")

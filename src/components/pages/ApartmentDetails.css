@@ -87,6 +87,28 @@
     background-color: #e5e8ec;
 }
 
+.apartment-report-button {
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: #f1f3f6;
+    color: #555;
+    font-size: 3rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.apartment-report-button:hover {
+    background-color: #e5e8ec;
+}
+
+.apartment-action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
 .apartment-details-content h1 {
   margin: 10px 0 5px;
   font-size: 1.8rem;

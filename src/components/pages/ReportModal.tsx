@@ -115,9 +115,16 @@ function ReportModal({
                     <textarea
                         id="report-comment"
                         value={comment}
-                        onChange={(event) => setComment(event.target.value)}
+                        onChange={(event) => {
+                            const lines = event.target.value.split("\n");
+
+                            if (lines.length <= 15) {
+                                setComment(event.target.value);
+                            }
+                        }}
                         placeholder="Add more information..."
-                        rows={4}
+                        rows={5}
+                        maxLength={500}
                     />
 
                     <div className="report-modal-buttons">

@@ -442,21 +442,31 @@ export async function getApartmentReport(userId: string, apartmentId: string) {
         .maybeSingle();
 }
 
-export async function reportApartment(userId: string, apartmentId: string) {
-    return supabase
-        .from("ApartmentReports")
-        .insert({
-            user_id: userId,
-            apartment_id: apartmentId,
-        });
-}
-
 export async function removeApartmentReport(userId: string, apartmentId: string) {
     return supabase
         .from("ApartmentReports")
         .delete()
         .eq("user_id", userId)
         .eq("apartment_id", apartmentId);
+}
+
+export async function getReportReasons(targetType: string) {
+    return supabase
+        .from("ReportReasons")
+        .select("id, reason")
+        .or(`target_type.eq.${targetType},target_type.eq.both`)
+        .order("reason");
+}
+
+export async function reportApartment(userId: string, apartmentId: string, reasonId: string, comment: string) {
+    return supabase
+        .from("ApartmentReports")
+        .insert({
+            user_id: userId,
+            apartment_id: apartmentId,
+            reason_id: reasonId,
+            comment: comment || null,
+        });
 }
 
 export function getApartmentImageUrl(imagePath: string) {

@@ -4,6 +4,7 @@ import profileIcon from "../../assets/profile.svg";
 import chatIcon from "../../assets/chat.svg";
 import "./ApartmentDetails.css";
 import * as db from "../services/DatabaseService";
+import ReportModal from "./ReportModal";
 
 type CreatorProfile = {
     id: string;
@@ -44,6 +45,7 @@ export default function ApartmentDetails() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [isFavorite, setIsFavorite] = useState(false);
     const [isReported, setIsReported] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
 
     useEffect(() => {
         async function loadApartment() {
@@ -193,31 +195,22 @@ export default function ApartmentDetails() {
             return;
         }
 
-        if (isReported) {
-            const { error } = await db.removeApartmentReport(
-                currentUserId,
-                id
-            );
-
-            if (error) {
-                console.error("Error removing report:", error);
-                return;
-            }
-
-            setIsReported(false);
-        } else {
-            const { error } = await db.reportApartment(
-                currentUserId,
-                id
-            );
-
-            if (error) {
-                console.error("Error reporting apartment:", error);
-                return;
-            }
-
-            setIsReported(true);
+        if (!isReported) {
+            setShowReportModal(true);
+            return;
         }
+
+        const { error } = await db.removeApartmentReport(
+            currentUserId,
+            id
+        );
+
+        if (error) {
+            console.error("Error removing report:", error);
+            return;
+        }
+
+        setIsReported(false);
     }
 
     if (loading) {
@@ -515,6 +508,14 @@ export default function ApartmentDetails() {
                     </div>
                 </div>
             </div>
+
+            <ReportModal
+                isOpen={showReportModal}
+                userId={currentUserId!}
+                apartmentId={id!}
+                onClose={() => setShowReportModal(false)}
+                onReportSaved={() => setIsReported(true)}
+            />
         </main>
     );
 }

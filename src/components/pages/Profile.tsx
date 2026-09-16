@@ -1,21 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useProfile } from "../../components/sub_components/ProfileContext";
+import ApartmentCard from "../../components/sub_components/ApartmentCard";
+import type { Apartment } from "../../types/Apartment";
+import { prepareApartments } from "../sub_components/prepareApartments";
 import * as db from "../services/DatabaseService";
 
 import "./Profile.css";
-
-type Apartment = {
-    id: string;
-    city: string;
-    neighborhood: string;
-    price: number;
-    floor: number;
-    rooms: number;
-    storage: boolean;
-    ac: boolean;
-    garage: boolean;
-};
 
 export default function Profile() {
     const navigate = useNavigate();
@@ -67,21 +58,8 @@ export default function Profile() {
                 console.error("Error loading apartments:", apartmentError);
                 setMessage("Failed to load apartments.");
             } else {
-                const apartmentsWithNeighborhoods = await Promise.all(
-                    (apartmentData ?? []).map(async (apartment) => {
-                        const { data: neighborhoodData, error: neighborhoodError } = await db.getNeighborhoodById(apartment.neighborhood_id);
-                        if (neighborhoodError) {
-                            console.error("Error loading neighborhood:", neighborhoodError);
-                        }
-
-                        return {
-                            ...apartment,
-                            neighborhood: neighborhoodData?.name ?? "",
-                        };
-                    })
-                );
-
-                setApartments(apartmentsWithNeighborhoods);
+                const apartmentsWithData = await prepareApartments(apartmentData ?? []);
+                setApartments(apartmentsWithData ?? []);
             }
 
             setLoading(false);
@@ -379,41 +357,10 @@ export default function Profile() {
                     ) : (
                         <div className="profile-listings-grid">
                             {apartments.map((apartment) => (
-                                <div
+                                <ApartmentCard
                                     key={apartment.id}
-                                    className="profile-listing-card"
-                                    onClick={() =>
-                                        navigate(`/apartments/${apartment.id}`)
-                                    }
-                                >
-                                    <div className="profile-listing-info">
-                                        <div className="profile-listing-price">
-                                            {apartment.price} €
-                                            <span>/ month</span>
-                                        </div>
-
-                                        <h3>
-                                            {apartment.rooms} room
-                                            {apartment.rooms !== 1 ? "s" : ""} apartment
-                                        </h3>
-
-                                        <p>
-                                            {apartment.neighborhood},{" "}
-                                            {apartment.city}
-                                        </p>
-
-                                        <div className="profile-listing-details">
-                                            <span>Floor {apartment.floor}</span>
-                                            {apartment.storage && (
-                                                <span>Storage</span>
-                                            )}
-                                            {apartment.garage && (
-                                                <span>Garage</span>
-                                            )}
-                                            {apartment.ac && <span>AC</span>}
-                                        </div>
-                                    </div>
-                                </div>
+                                    apartment={apartment}
+                                />
                             ))}
                         </div>
                     )}

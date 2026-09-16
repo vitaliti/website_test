@@ -1,7 +1,9 @@
 import "./Home.css";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import * as db from "../services/DatabaseService";
+import ApartmentCard from "../sub_components/ApartmentCard";
+import { prepareApartments } from "../sub_components/prepareApartments";
+import type { Apartment } from "../../types/Apartment";
 
 export default function Home() {
     const [city, setCity] = useState("");
@@ -17,7 +19,7 @@ export default function Home() {
         { id: string; name: string }[]
     >([]);
 
-    const [apartments, setApartments] = useState<any[]>([]);
+    const [apartments, setApartments] = useState<Apartment[]>([]);
 
     useEffect(() => {
         async function loadNeighborhoods() {
@@ -34,36 +36,25 @@ export default function Home() {
     }, []);
 
     async function handleSearch() {
-        const { data, error } = await db.searchApartments(city, neighborhoodId, price, floor, rooms, storage, ac, garage);
+        const { data, error } = await db.searchApartments(
+            city,
+            neighborhoodId,
+            price,
+            floor,
+            rooms,
+            storage,
+            ac,
+            garage
+        );
+
         if (error) {
             console.error("Error searching apartments:", error);
             return;
         }
 
-        const apartmentsWithImages = await Promise.all(
-            (data ?? []).map(async (apartment) => {
-                const { data: imageData, error: imageError } = await db.getFirstApartmentImage(apartment.id);
-                if (imageError) {
-                    console.error(
-                        "Error loading apartment image:",
-                        imageError
-                    );
-                }
+        const apartmentsWithData = await prepareApartments(data ?? []);
 
-                let imageUrl = null;
-
-                if (imageData) {
-                    imageUrl = db.getApartmentImageUrl(imageData.image_path);
-                }
-
-                return {
-                    ...apartment,
-                    imageUrl,
-                };
-            })
-        );
-
-        setApartments(apartmentsWithImages);
+        setApartments(apartmentsWithData ?? []);
     }
 
     return (
@@ -180,47 +171,10 @@ export default function Home() {
 
                     <div className="apartment-results">
                         {apartments.map((apartment) => (
-                            <Link
-                                to={`/apartments/${apartment.id}`}
-                                className="apartment-card"
+                            <ApartmentCard
                                 key={apartment.id}
-                            >
-                                {apartment.imageUrl ? (
-                                    <img
-                                        className="apartment-image"
-                                        src={apartment.imageUrl}
-                                        alt="Apartment"
-                                    />
-                                ) : (
-                                    <div className="apartment-image apartment-image-placeholder">
-                                        No image
-                                    </div>
-                                )}
-
-                                <div className="apartment-info">
-                                    <h3>{apartment.price} €</h3>
-
-                                    <p className="apartment-location">
-                                        {apartment.Neighborhoods?.name},{" "}
-                                        {apartment.city}
-                                    </p>
-
-                                    <p className="apartment-details">
-                                        {apartment.rooms} rooms · Floor{" "}
-                                        {apartment.floor}
-                                    </p>
-
-                                    <div className="apartment-features">
-                                        {apartment.ac && <span>AC</span>}
-                                        {apartment.storage && (
-                                            <span>Storage</span>
-                                        )}
-                                        {apartment.garage && (
-                                            <span>Garage</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </Link>
+                                apartment={apartment}
+                            />
                         ))}
                     </div>
                 </div>

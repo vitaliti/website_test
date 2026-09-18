@@ -201,17 +201,20 @@ export async function createApartment(
         .single();
 }
 
-export async function updateApartment(
-    id: string, 
+export function updateApartment(
+    id: string,
     city: string,
     description: string,
-    neighborhoodId: string, 
-    price: string, 
-    floor: string, 
-    rooms: string, 
-    storage: boolean, 
-    ac: boolean, 
-    garage: boolean) {
+    neighborhoodId: string,
+    price: string,
+    floor: string,
+    rooms: string,
+    storage: boolean,
+    ac: boolean,
+    garage: boolean,
+    latitude: number | null,
+    longitude: number | null
+) {
     return supabase
         .from("Apartments")
         .update({
@@ -224,7 +227,8 @@ export async function updateApartment(
             storage,
             ac,
             garage,
-            updated_at: new Date().toISOString(),
+            latitude,
+            longitude,
         })
         .eq("id", id);
 }
@@ -279,6 +283,8 @@ export async function searchApartments(
             storage,
             ac,
             garage,
+            latitude,
+            longitude,
             Neighborhoods (
                 name
             )
@@ -330,7 +336,7 @@ export async function getApartmentById(id: string) {
 export async function getUserApartments(userId: string) {
     return supabase
         .from("Apartments")
-        .select("id, city, neighborhood_id, price, floor, rooms, storage, ac, garage")
+        .select("id, city, neighborhood_id, price, floor, rooms, storage, ac, garage, latitude, longitude")
         .eq("creator_id", userId);
 }
 

@@ -15,4 +15,6 @@ export type Apartment = {
     ac: boolean;
     garage: boolean;
     images: ApartmentImage[];
+    latitude: number;
+    longitude: number;
 };

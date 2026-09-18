@@ -1,0 +1,10 @@
+.apartment-map {
+    width: 100%;
+    height: 100%;
+}
+
+.apartment-map .leaflet-container {
+    width: 100%;
+    height: 100%;
+}
+

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import ApartmentLocationPicker from "../sub_components/ApartmentLocationPicker";
 import * as db from "../services/DatabaseService";
 import "./CreateListing.css";
 
@@ -27,6 +28,8 @@ export default function EditApartment() {
     const [storage, setStorage] = useState(false);
     const [ac, setAc] = useState(false);
     const [garage, setGarage] = useState(false);
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
 
     const [images, setImages] = useState<ApartmentImage[]>([]);
     const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
@@ -98,6 +101,8 @@ export default function EditApartment() {
             setAc(data.ac);
             setGarage(data.garage);
             setImages(imageData ?? []);
+            setLatitude(data.latitude ?? null);
+            setLongitude(data.longitude ?? null);
 
             setLoading(false);
         }
@@ -231,7 +236,20 @@ export default function EditApartment() {
         setSaving(true);
         setError("");
 
-        const { error } = await db.updateApartment(id, city, description, neighborhoodId, price, floor, rooms, storage, ac, garage);
+        const { error } = await db.updateApartment(
+                                id,
+                                city,
+                                description,
+                                neighborhoodId,
+                                price,
+                                floor,
+                                rooms,
+                                storage,
+                                ac,
+                                garage,
+                                latitude,
+                                longitude
+                            );
         if (error) {
             console.error("Error updating apartment:", error);
             setError(error.message);
@@ -361,6 +379,15 @@ export default function EditApartment() {
                                 </select>
                             </div>
                         </div>
+
+                        <ApartmentLocationPicker
+                            latitude={latitude}
+                            longitude={longitude}
+                            onLocationChange={(newLatitude, newLongitude) => {
+                                setLatitude(newLatitude);
+                                setLongitude(newLongitude);
+                            }}
+                        />
                     </div>
 
                     <div className="form-section">

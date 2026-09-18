@@ -15,6 +15,8 @@ type FavoriteApartment = {
     storage: boolean;
     ac: boolean;
     garage: boolean;
+    latitude: number;
+    longitude: number;
 };
 
 export default function MyApartments() {
@@ -68,11 +70,8 @@ export default function MyApartments() {
                         favorite.Apartments as unknown as FavoriteApartment
                 );
 
-            const favoritesWithData =
-                await prepareApartments(favoriteApartments);
-
+            const favoritesWithData = await prepareApartments(favoriteApartments);
             setFavorites(favoritesWithData ?? []);
-
             setLoading(false);
         }
 

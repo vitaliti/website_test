@@ -6,17 +6,19 @@ import "./ApartmentCard.css";
 
 type ApartmentCardProps = {
     apartment: Apartment;
+    selected?: boolean;
 };
 
 export default function ApartmentCard({
-    apartment
+    apartment,
+    selected
 }: ApartmentCardProps) {
     const firstImage = apartment.images[0];
 
     return (
         <Link
             to={`/apartments/${apartment.id}`}
-            className="apartment-card"
+            className={`apartment-card ${selected ? "selected" : ""}`}
         >
             <div className="apartment-image">
                 {firstImage ? (

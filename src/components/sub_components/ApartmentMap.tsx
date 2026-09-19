@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -19,7 +20,11 @@ function MapController({
 }) {
     const map = useMap();
 
-    if (selectedApartmentId) {
+    useEffect(() => {
+        if (!selectedApartmentId) {
+            return;
+        }
+
         const apartment = apartments.find(
             (apartment) => apartment.id === selectedApartmentId
         );
@@ -27,7 +32,7 @@ function MapController({
         if (apartment) {
             map.setView([apartment.latitude, apartment.longitude], 15);
         }
-    }
+    }, [apartments, selectedApartmentId, map]);
 
     return null;
 }
@@ -69,6 +74,7 @@ export default function ApartmentMap({
                 />
 
                 {apartments.map((apartment) => (
+                    apartment.latitude !== null && apartment.longitude !== null && (
                     <Marker
                         key={apartment.id}
                         position={[apartment.latitude, apartment.longitude]}
@@ -85,6 +91,7 @@ export default function ApartmentMap({
                             Floor {apartment.floor}
                         </Popup>
                     </Marker>
+                    )
                 ))}
             </MapContainer>
         </div>

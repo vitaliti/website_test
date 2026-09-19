@@ -150,8 +150,20 @@
 
 .apartment-results {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 20px;
+}
+
+.apartment-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.apartment-map {
+    height: 600px;
+    position: sticky;
+    top: 20px;
 }
 
 /* MOBILE */
@@ -163,5 +175,13 @@
 
     .apartment-results {
         grid-template-columns: 1fr;
+    }
+
+    .apartment-list {
+        grid-template-columns: 1fr;
+    }
+
+    .apartment-map {
+        display: none;
     }
 }

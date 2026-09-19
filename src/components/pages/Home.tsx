@@ -4,6 +4,7 @@ import * as db from "../services/DatabaseService";
 import ApartmentCard from "../sub_components/ApartmentCard";
 import { prepareApartments } from "../sub_components/prepareApartments";
 import type { Apartment } from "../../types/Apartment";
+import ApartmentMap from "../sub_components/ApartmentMap";
 
 export default function Home() {
     const [city, setCity] = useState("");
@@ -20,6 +21,7 @@ export default function Home() {
     >([]);
 
     const [apartments, setApartments] = useState<Apartment[]>([]);
+    const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null);
 
     useEffect(() => {
         async function loadNeighborhoods() {
@@ -170,12 +172,21 @@ export default function Home() {
                     <h2>Available apartments</h2>
 
                     <div className="apartment-results">
-                        {apartments.map((apartment) => (
-                            <ApartmentCard
-                                key={apartment.id}
-                                apartment={apartment}
-                            />
-                        ))}
+                        <div className="apartment-list">
+                            {apartments.map((apartment) => (
+                                <ApartmentCard
+                                    key={apartment.id}
+                                    apartment={apartment}
+                                    selected={selectedApartmentId === apartment.id}
+                                />
+                            ))}
+                        </div>
+
+                        <ApartmentMap
+                            apartments={apartments}
+                            selectedApartmentId={selectedApartmentId}
+                            onApartmentSelect={setSelectedApartmentId}
+                        />
                     </div>
                 </div>
             )}

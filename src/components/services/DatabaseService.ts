@@ -181,7 +181,9 @@ export async function createApartment(
     rooms: number,
     storage: boolean,
     ac: boolean,
-    garage: boolean
+    garage: boolean,
+    latitude: number | null,
+    longitude: number | null
 ) {
     return supabase
         .from("Apartments")
@@ -196,6 +198,8 @@ export async function createApartment(
             storage,
             ac,
             garage,
+            latitude,
+            longitude
         })
         .select()
         .single();

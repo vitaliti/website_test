@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as db from "../services/DatabaseService";
+import ApartmentLocationPicker from "../sub_components/ApartmentLocationPicker";
 import "./CreateListing.css";
 
 export default function CreateListing() {
@@ -20,6 +21,8 @@ export default function CreateListing() {
     const [ac, setAc] = useState(false);
     const [garage, setGarage] = useState(false);
     const [pictures, setPictures] = useState<File[]>([]);
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
 
     useEffect(() => {
         async function loadNeighborhoods() {
@@ -67,7 +70,9 @@ export default function CreateListing() {
             Number(rooms),
             storage,
             ac,
-            garage
+            garage,
+            latitude,
+            longitude
         );
 
         if (error) {
@@ -149,6 +154,15 @@ export default function CreateListing() {
                                 </select>
                             </div>
                         </div>
+
+                            <ApartmentLocationPicker
+                                latitude={latitude}
+                                longitude={longitude}
+                                onLocationChange={(newLatitude, newLongitude) => {
+                                    setLatitude(newLatitude);
+                                    setLongitude(newLongitude);
+                                }}
+                            />
                     </section>
 
                     <section className="form-section">
